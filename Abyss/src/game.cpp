@@ -1,5 +1,7 @@
 #include "SDL3/SDL.h"
 
+#include "handmade_math.h"
+
 #include <iostream>
 #include <stdint.h>
 
