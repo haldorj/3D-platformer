@@ -54,7 +54,8 @@ ID3D11Device* d3d11Device;
 ID3D11DeviceContext* d3d11DevCon;
 ID3D11RenderTargetView* renderTargetView;
 
-ID3D11Buffer* triangleVertBuffer;
+ID3D11Buffer* squareIndexBuffer;
+ID3D11Buffer* squareVertBuffer;
 ID3D11VertexShader* VS;
 ID3D11PixelShader* PS;
 ID3D10Blob* VS_Buffer;
@@ -190,22 +191,20 @@ void Init()
     d3d11DevCon->VSSetShader(VS, 0, 0);
     d3d11DevCon->PSSetShader(PS, 0, 0);
 
-    //Create the vertex buffer
+    //Create the vertex buffer (square)
     Vertex v[] =
     {
-         {{0.0f, 0.5f, 0.5f},{1.f, 0.f, 0.f}},
-		{{0.5f, -0.5f, 0.5f},{0.f, 1.f, 0.f}},
-        {{-0.5f, -0.5f, 0.5f},{0.f, 0.f, 1.f}},
+        {{-0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f} },
+        {{0.5f, 0.5f, 0.5f}, {0.0f, 1.0f, 0.0f} },
+        {{0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f} },
+        {{-0.5f, -0.5f, 0.5f}, {1.0f, 1.0f, 0.0f} },
     };
 
-    D3D11_BUFFER_DESC vertexBufferDesc;
-    ZeroMemory(&vertexBufferDesc, sizeof(vertexBufferDesc));
-
-    vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-    vertexBufferDesc.ByteWidth = sizeof(Vertex) * 3;
-    vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    vertexBufferDesc.CPUAccessFlags = 0;
-    vertexBufferDesc.MiscFlags = 0;
+    uint32_t indices[] =
+    {
+        0, 1, 2,
+        2, 3, 0
+	};
 
     D3D11_INPUT_ELEMENT_DESC layout[] =
     {
@@ -214,16 +213,41 @@ void Init()
     };
     UINT numElements = ARRAYSIZE(layout);
 
+    D3D11_BUFFER_DESC indexBufferDesc;
+    ZeroMemory(&indexBufferDesc, sizeof(indexBufferDesc));
+
+    indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    indexBufferDesc.ByteWidth = sizeof(DWORD) * 2 * 3;
+    indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    indexBufferDesc.CPUAccessFlags = 0;
+    indexBufferDesc.MiscFlags = 0;
+
+    D3D11_SUBRESOURCE_DATA iinitData;
+
+    iinitData.pSysMem = indices;
+    d3d11Device->CreateBuffer(&indexBufferDesc, &iinitData, &squareIndexBuffer);
+
+    d3d11DevCon->IASetIndexBuffer(squareIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+    D3D11_BUFFER_DESC vertexBufferDesc;
+    ZeroMemory(&vertexBufferDesc, sizeof(vertexBufferDesc));
+
+    vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    vertexBufferDesc.ByteWidth = sizeof(Vertex) * 4;
+    vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    vertexBufferDesc.CPUAccessFlags = 0;
+    vertexBufferDesc.MiscFlags = 0;
+
     D3D11_SUBRESOURCE_DATA vertexBufferData;
 
     ZeroMemory(&vertexBufferData, sizeof(vertexBufferData));
     vertexBufferData.pSysMem = v;
-    ExitIfFailed(d3d11Device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &triangleVertBuffer));
+    ExitIfFailed(d3d11Device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &squareVertBuffer));
 
     //Set the vertex buffer
     UINT stride = sizeof(Vertex);
     UINT offset = 0;
-    d3d11DevCon->IASetVertexBuffers(0, 1, &triangleVertBuffer, &stride, &offset);
+    d3d11DevCon->IASetVertexBuffers(0, 1, &squareVertBuffer, &stride, &offset);
 
     //Create the Input Layout
     d3d11Device->CreateInputLayout(layout, numElements, VS_Buffer->GetBufferPointer(),
@@ -251,7 +275,8 @@ void Init()
         SwapChain->Release();
         d3d11Device->Release();
         d3d11DevCon->Release();
-        triangleVertBuffer->Release();
+        squareVertBuffer->Release();
+        squareIndexBuffer->Release();
         VS->Release();
         PS->Release();
         VS_Buffer->Release();
@@ -287,8 +312,8 @@ void Draw()
     float bgColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
     d3d11DevCon->ClearRenderTargetView(renderTargetView, bgColor);
 
-    //Draw the triangle
-    d3d11DevCon->Draw(3, 0);
+    //Draw the square
+    d3d11DevCon->DrawIndexed(6, 0, 0);
 
     //Present the backbuffer to the screen
     SwapChain->Present(0, 0);
