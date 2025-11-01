@@ -40,6 +40,7 @@ struct DeletionQueue
 struct Vertex
 {
 	V3 Position;
+	V3 Color;
 };
 
 constexpr int windowWidth = 1280;
@@ -77,8 +78,9 @@ static void ExitIfFailed(HRESULT hr)
     {
         _com_error err(hr);
 		LPCTSTR errMsg = err.ErrorMessage();
-		char buffer[512];
+		char buffer[265];
 		WideCharToMultiByte(CP_ACP, 0, errMsg, -1, buffer, sizeof(buffer), NULL, NULL);
+
         std::printf("HRESULT failed with error: %s", buffer);
         exit(-1);
     }
@@ -97,7 +99,7 @@ void Init()
 
     if (!window)
     {
-		SDL_Log("Failed to create SDL window: %s", SDL_GetError());
+        std::printf("Failed to create SDL window: %s", SDL_GetError());
         return;
     }
     
@@ -106,7 +108,7 @@ void Init()
 
     if (!hwnd) 
     {
-        SDL_Log("Failed to get HWND: %s", SDL_GetError());
+        std::printf("Failed to get HWND: %s", SDL_GetError());
         return;
     }
 
@@ -191,9 +193,9 @@ void Init()
     //Create the vertex buffer
     Vertex v[] =
     {
-        {0.0f, 0.5f, 0.5f},
-        {0.5f, -0.5f, 0.5f},
-        {-0.5f, -0.5f, 0.5f},
+         {{0.0f, 0.5f, 0.5f},{1.f, 0.f, 0.f}},
+		{{0.5f, -0.5f, 0.5f},{0.f, 1.f, 0.f}},
+        {{-0.5f, -0.5f, 0.5f},{0.f, 0.f, 1.f}},
     };
 
     D3D11_BUFFER_DESC vertexBufferDesc;
@@ -208,6 +210,7 @@ void Init()
     D3D11_INPUT_ELEMENT_DESC layout[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
     UINT numElements = ARRAYSIZE(layout);
 
@@ -248,6 +251,7 @@ void Init()
         SwapChain->Release();
         d3d11Device->Release();
         d3d11DevCon->Release();
+        triangleVertBuffer->Release();
         VS->Release();
         PS->Release();
         VS_Buffer->Release();
