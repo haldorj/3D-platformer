@@ -69,6 +69,8 @@ ID3D10Blob* VS_Buffer;
 ID3D10Blob* PS_Buffer;
 ID3D11InputLayout* vertLayout;
 ID3D11Buffer* cbPerObjectBuffer;
+ID3D11RasterizerState* Solid;
+ID3D11RasterizerState* WireFrame;
 
 cbPerObject cbPerObj;
 
@@ -332,6 +334,18 @@ void Init()
 
     ExitIfFailed(d3d11Device->CreateBuffer(&cbbd, NULL, &cbPerObjectBuffer));
 
+    D3D11_RASTERIZER_DESC solidDesc;
+    ZeroMemory(&solidDesc, sizeof(D3D11_RASTERIZER_DESC));
+    solidDesc.FillMode = D3D11_FILL_SOLID;
+    solidDesc.CullMode = D3D11_CULL_BACK;
+    ExitIfFailed(d3d11Device->CreateRasterizerState(&solidDesc, &Solid));
+
+    D3D11_RASTERIZER_DESC wfdesc;
+    ZeroMemory(&wfdesc, sizeof(D3D11_RASTERIZER_DESC));
+    wfdesc.FillMode = D3D11_FILL_WIREFRAME;
+    wfdesc.CullMode = D3D11_CULL_NONE;
+    ExitIfFailed(d3d11Device->CreateRasterizerState(&wfdesc, &WireFrame));
+
     //Camera information
     camPosition = { 0.0f, 3.0f, -8.0f };
     camTarget = { 0.0f, 0.0f, 0.0f };
@@ -357,6 +371,8 @@ void Init()
         depthStencilView->Release();
         depthStencilBuffer->Release();
         cbPerObjectBuffer->Release();
+        WireFrame->Release();
+        Solid->Release();
         });
 }
 
@@ -414,6 +430,7 @@ void Draw()
     d3d11DevCon->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
 
     //Draw the first cube
+    d3d11DevCon->RSSetState(WireFrame);
     d3d11DevCon->DrawIndexed(36, 0, 0);
 
     WVP = cube2World * camView * camProjection;
@@ -422,6 +439,7 @@ void Draw()
     d3d11DevCon->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
 
     //Draw the second cube
+    d3d11DevCon->RSSetState(Solid);
     d3d11DevCon->DrawIndexed(36, 0, 0);
 
     //Present the backbuffer to the screen
