@@ -3,6 +3,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STB_TRUETYPE_IMPLEMENTATION
+
 #include "stb_truetype.h"
 
 #include "handmade_math.h"
@@ -40,6 +41,14 @@ struct Texture
     int Width;
     int Height;
     std::vector<unsigned char> Pixels;
+};
+
+struct FontGlyph
+{
+    Texture GlyphTexture;
+	V2 Size;
+    V2 Bearing;
+	float Advance;
 };
 
 struct CbPerObject
@@ -100,6 +109,8 @@ namespace
     M4 Scale;
     M4 Translation;
     float Rot = 0.01f;
+
+	std::map<char, FontGlyph> LoadedFontGlyphs{};
 }
 
 static void ExitIfFailed(const HRESULT hr)
@@ -150,6 +161,7 @@ static Texture CreateErrorTexture()
     texture.Width = width;
     texture.Height = height;
 	texture.Pixels = std::vector<unsigned char>(pixels, pixels + (width * height * 4));
+
     return texture;
 }
 
@@ -175,45 +187,71 @@ static std::string ReadEntireFile(const std::string& filename)
 }
 
 
-static Texture LoadFontTexture(const std::string& path, const char codepoint)
+std::map<char, FontGlyph> LoadFontGlyphs(const std::string& path)
 {
+    std::map<char, FontGlyph> result;
+
     std::string ttfBuffer = ReadEntireFile(path);
     if (ttfBuffer.empty())
     {
-        return CreateErrorTexture();
+        return {};
 	}
-    const auto data = (unsigned char*)ttfBuffer.data();
+    const unsigned char* data = (unsigned char*)ttfBuffer.data();
 
     stbtt_fontinfo font{};
-    stbtt_InitFont(&font, data, stbtt_GetFontOffsetForIndex(data, 0));
-
-    constexpr float pixelHeight = 64.0f;
-    const float scale = stbtt_ScaleForPixelHeight(&font, pixelHeight);
-    int width, height, xOffset, yOffset;
-	const auto bitmap = stbtt_GetCodepointBitmap(
-        &font, 0, scale, codepoint, &width, &height, &xOffset, &yOffset);
-
-    Texture fontTexture;
-	fontTexture.Width = width;
-	fontTexture.Height = height;
-	fontTexture.Pixels = std::vector<unsigned char>(width * height * 4);
-
-    for (int y = 0; y < height; ++y)
-    {
-        for (int x = 0; x < width; ++x)
-        {
-            const int index = y * width + x;
-            unsigned char value = bitmap[index];
-            // Set RGBA values
-            fontTexture.Pixels[index * 4 + 0] = 255; // R
-            fontTexture.Pixels[index * 4 + 1] = 255; // G
-            fontTexture.Pixels[index * 4 + 2] = 255; // B
-            fontTexture.Pixels[index * 4 + 3] = value; // A
-        }
+	if (!stbtt_InitFont(&font, data, stbtt_GetFontOffsetForIndex(data, 0)))
+	{
+		std::println("Failed to initialize font from file: {}", path);
+		return {};
 	}
 
-    stbtt_FreeBitmap(bitmap, nullptr);
-    return fontTexture;
+    constexpr float pixelHeight = 128.0f;
+    const float scale = stbtt_ScaleForPixelHeight(&font, pixelHeight);
+    int width, height, xOffset, yOffset, advance, lsb;
+
+    for (int codepoint = 0; codepoint < 128; ++codepoint)
+    {
+        const auto bitmap = stbtt_GetCodepointBitmap(
+            &font, 0, scale, codepoint, &width, &height, &xOffset, &yOffset);
+        stbtt_GetCodepointHMetrics(&font, codepoint, &advance, &lsb);
+
+        if (width == 0 || height == 0)
+        {
+            stbtt_FreeBitmap(bitmap, nullptr);
+            continue;
+        }
+
+        Texture fontTexture{};
+        fontTexture.Width = width;
+        fontTexture.Height = height;
+        fontTexture.Pixels = std::vector<unsigned char>(width * height * 4);
+
+        for (int y = 0; y < height; ++y)
+        {
+            for (int x = 0; x < width; ++x)
+            {
+                const int index = y * width + x;
+                unsigned char value = bitmap[index];
+                // Set RGBA values
+                fontTexture.Pixels[index * 4 + 0] = 255; // R
+                fontTexture.Pixels[index * 4 + 1] = 255; // G
+                fontTexture.Pixels[index * 4 + 2] = 255; // B
+                fontTexture.Pixels[index * 4 + 3] = value; // A
+            }
+        }
+
+		FontGlyph glyph{};
+		glyph.GlyphTexture = fontTexture;
+		glyph.Size = {.X = static_cast<float>(width), .Y = static_cast<float>(height) };
+		glyph.Bearing = {.X = static_cast<float>(xOffset), .Y = static_cast<float>(-yOffset) };
+		glyph.Advance = scale * static_cast<float>(advance);
+
+        result.emplace(codepoint, glyph);
+
+        stbtt_FreeBitmap(bitmap, nullptr);
+    }
+
+    return result;
 }
 
 static Texture LoadTexture(const char* filename)
@@ -515,8 +553,7 @@ static void Init()
     samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
     ExitIfFailed(D3d11Device->CreateSamplerState(&samplerDesc, &CubesTexSamplerState));
 
-    //Texture tex = LoadTexture("assets/textures/cage.png");
-	Texture tex = LoadFontTexture("C:/Windows/Fonts/arial.ttf", '8');
+    Texture tex = LoadTexture("assets/textures/cage.png");
 
     D3D11_TEXTURE2D_DESC desc = {};
     desc.Width = tex.Width;
@@ -625,6 +662,8 @@ static void Init()
     //Set the Projection matrix
     CamProjection = MatrixPerspective(
         0.4f * 3.14f, static_cast<float>(GameResolutionWidth) / GameResolutionHeight, 1.0f, 1000.0f);
+
+    LoadedFontGlyphs = LoadFontGlyphs("C:/Windows/Fonts/arial.ttf");
 }
 
 static void Cleanup()
