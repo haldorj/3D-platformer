@@ -1,5 +1,8 @@
 #include "SDL3/SDL.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include "handmade_math.h"
 
 #include <iostream>
@@ -41,6 +44,14 @@ struct Vertex
 {
 	V3 Position;
 	V3 Color;
+    V2 TexCoord;
+};
+
+struct Texture
+{
+    int Width;
+    int Height;
+    unsigned char* Pixels;
 };
 
 struct cbPerObject
@@ -51,8 +62,8 @@ struct cbPerObject
 constexpr int windowWidth = 1280;
 constexpr int windowHeight = 720;
 
-constexpr int Width = 640;
-constexpr int Height = 360;
+constexpr int GameResolutionWidth = 640;
+constexpr int GameResolutionHeight = 360;
 
 IDXGISwapChain* SwapChain;
 ID3D11Device* d3d11Device;
@@ -61,8 +72,8 @@ ID3D11RenderTargetView* renderTargetView;
 ID3D11DepthStencilView* depthStencilView;
 ID3D11Texture2D* depthStencilBuffer;
 
-ID3D11Buffer* squareIndexBuffer;
-ID3D11Buffer* squareVertBuffer;
+ID3D11Buffer* CubesIndexBuffer;
+ID3D11Buffer* CubesVertBuffer;
 ID3D11VertexShader* VS;
 ID3D11PixelShader* PS;
 ID3D10Blob* VS_Buffer;
@@ -71,6 +82,12 @@ ID3D11InputLayout* vertLayout;
 ID3D11Buffer* cbPerObjectBuffer;
 ID3D11RasterizerState* Solid;
 ID3D11RasterizerState* WireFrame;
+
+ID3D11ShaderResourceView* CubesTextureView;
+ID3D11SamplerState* CubesTexSamplerState;
+ID3D11BlendState* Transparency;
+ID3D11RasterizerState* CCWcullMode;
+ID3D11RasterizerState* CWcullMode;
 
 cbPerObject cbPerObj;
 
@@ -100,6 +117,59 @@ static void ExitIfFailed(HRESULT hr)
         std::printf("HRESULT failed with error: %s", buffer);
         exit(-1);
     }
+}
+
+Texture CreateErrorTexture()
+{
+	const int width = 256;
+	const int height = 256;
+	unsigned char* pixels = (unsigned char*)malloc(width * height * 4);
+	// Checkerboard pattern
+
+	int checkSize = 16;
+	for (int y = 0; y < height; ++y)
+	{
+		for (int x = 0; x < width; ++x)
+		{
+			int index = (y * width + x) * 4;
+			if (((x / checkSize) % 2) == ((y / checkSize) % 2))
+			{
+				pixels[index + 0] = 255; // R
+				pixels[index + 1] = 0;   // G
+				pixels[index + 2] = 255; // B
+				pixels[index + 3] = 255; // A
+			}
+			else
+			{
+				pixels[index + 0] = 0;   // R
+				pixels[index + 1] = 0;   // G
+				pixels[index + 2] = 0;   // B
+				pixels[index + 3] = 255; // A
+			}
+		}
+	}
+
+	Texture texture;
+	texture.Width = width;
+	texture.Height = height;
+	texture.Pixels = pixels;
+	return texture;
+}
+
+Texture LoadTexture(const char* filename)
+{
+    int width, height, channels;
+    unsigned char* data = stbi_load(filename, &width, &height, &channels, STBI_rgb_alpha);
+    if (!data)
+    {
+        // If loading fails, return an error texture
+        return CreateErrorTexture();
+    }
+    Texture texture;
+    texture.Width = width;
+    texture.Height = height;
+    texture.Pixels = data;
+    return texture;
 }
 
 void Init()
@@ -136,8 +206,8 @@ void Init()
     DXGI_MODE_DESC bufferDesc;
     ZeroMemory(&bufferDesc, sizeof(DXGI_MODE_DESC));
 
-    bufferDesc.Width = Width;
-    bufferDesc.Height = Height;
+    bufferDesc.Width = GameResolutionWidth;
+    bufferDesc.Height = GameResolutionHeight;
     bufferDesc.RefreshRate.Numerator = 60;
     bufferDesc.RefreshRate.Denominator = 1;
     bufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -178,8 +248,8 @@ void Init()
     //Describe our Depth/Stencil Buffer
     D3D11_TEXTURE2D_DESC depthStencilDesc;
 
-    depthStencilDesc.Width = Width;
-    depthStencilDesc.Height = Height;
+    depthStencilDesc.Width = GameResolutionWidth;
+    depthStencilDesc.Height = GameResolutionHeight;
     depthStencilDesc.MipLevels = 1;
     depthStencilDesc.ArraySize = 1;
     depthStencilDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
@@ -235,30 +305,70 @@ void Init()
     //Create the vertex buffer (cube)
     std::vector<Vertex> v =
     {
-        {{ -1.0f, -1.0f, -1.0f }, {1.0f, 0.0f, 0.0f}},
-        {{ -1.0f,  1.0f, -1.0f }, {0.0f, 1.0f, 0.0f}},
-        {{  1.0f,  1.0f, -1.0f }, {0.0f, 0.0f, 1.0f}},
-        {{  1.0f, -1.0f, -1.0f }, {1.0f, 1.0f, 0.0f}},
-        {{ -1.0f, -1.0f,  1.0f }, {1.0f, 0.0f, 1.0f}},
-        {{ -1.0f,  1.0f,  1.0f }, {0.0f, 1.0f, 1.0f}},
-        {{  1.0f,  1.0f,  1.0f }, {1.0f, 1.0f, 1.0f}},
-		{{  1.0f, -1.0f,  1.0f }, {0.5f, 0.5f, 0.5f}},
+        // Front Face (Z = -1)
+        { { -1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, { 0.0f, 1.0f } },
+        { {  1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 1.0f} },
+        { {  1.0f,  1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 0.0f} },
+        { { -1.0f,  1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 0.0f} },
+
+        // Back Face (Z = +1)
+        { { -1.0f, -1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 1.0f} },
+        { {  1.0f, -1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 1.0f} },
+        { {  1.0f,  1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 0.0f} },
+        { { -1.0f,  1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 0.0f} },
+
+        // Top Face (Y = +1)
+        { { -1.0f,  1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 1.0f} },
+        { { -1.0f,  1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 0.0f} },
+        { {  1.0f,  1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 0.0f} },
+        { {  1.0f,  1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 1.0f} },
+
+        // Bottom Face (Y = -1)
+        { { -1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 1.0f} },
+        { {  1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 1.0f} },
+        { {  1.0f, -1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 0.0f} },
+        { { -1.0f, -1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 0.0f} },
+
+        // Left Face (X = -1)
+        { { -1.0f, -1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 1.0f} },
+        { { -1.0f,  1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 0.0f} },
+        { { -1.0f,  1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 0.0f} },
+        { { -1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 1.0f} },
+
+        // Right Face (X = +1)
+        { {  1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 1.0f} },
+        { {  1.0f,  1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 0.0f} },
+        { {  1.0f,  1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 0.0f} },
+		{ {  1.0f, -1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 1.0f} },
     };
 
     uint32_t indices[] =
     {
-        0,1,2, 0,2,3,
-        4,6,5, 4,7,6,
-        4,5,1, 4,1,0,
-        3,2,6, 3,6,7,
-        1,5,6, 1,6,2,
-        4,0,3, 4,3,7
+        // Front Face
+        0,  1,  2,
+        0,  2,  3,
+        // Back Face
+        4,  5,  6,
+        4,  6,  7,
+        // Top Face
+        8,  9, 10,
+        8, 10, 11,
+        // Bottom Face
+        12, 13, 14,
+        12, 14, 15,
+        // Left Face
+        16, 17, 18,
+        16, 18, 19,
+        // Right Face
+        20, 21, 22,
+        20, 22, 23
 	};
 
     D3D11_INPUT_ELEMENT_DESC layout[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
     UINT numElements = ARRAYSIZE(layout);
 
@@ -274,9 +384,9 @@ void Init()
     D3D11_SUBRESOURCE_DATA iinitData;
 
     iinitData.pSysMem = indices;
-    d3d11Device->CreateBuffer(&indexBufferDesc, &iinitData, &squareIndexBuffer);
+    d3d11Device->CreateBuffer(&indexBufferDesc, &iinitData, &CubesIndexBuffer);
 
-    d3d11DevCon->IASetIndexBuffer(squareIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+    d3d11DevCon->IASetIndexBuffer(CubesIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
     D3D11_BUFFER_DESC vertexBufferDesc;
     ZeroMemory(&vertexBufferDesc, sizeof(vertexBufferDesc));
@@ -291,12 +401,12 @@ void Init()
 
     ZeroMemory(&vertexBufferData, sizeof(vertexBufferData));
     vertexBufferData.pSysMem = v.data();
-    ExitIfFailed(d3d11Device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &squareVertBuffer));
+    ExitIfFailed(d3d11Device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &CubesVertBuffer));
 
     //Set the vertex buffer
     UINT stride = sizeof(Vertex);
     UINT offset = 0;
-    d3d11DevCon->IASetVertexBuffers(0, 1, &squareVertBuffer, &stride, &offset);
+    d3d11DevCon->IASetVertexBuffers(0, 1, &CubesVertBuffer, &stride, &offset);
 
     //Create the Input Layout
     d3d11Device->CreateInputLayout(layout, numElements, VS_Buffer->GetBufferPointer(),
@@ -314,8 +424,8 @@ void Init()
 
     viewport.TopLeftX = 0;
     viewport.TopLeftY = 0;
-    viewport.Width = Width;
-    viewport.Height = Height;
+    viewport.Width = GameResolutionWidth;
+    viewport.Height = GameResolutionHeight;
     viewport.MinDepth = 0.0f;
     viewport.MaxDepth = 1.0f;
 
@@ -337,7 +447,7 @@ void Init()
     D3D11_RASTERIZER_DESC solidDesc;
     ZeroMemory(&solidDesc, sizeof(D3D11_RASTERIZER_DESC));
     solidDesc.FillMode = D3D11_FILL_SOLID;
-    solidDesc.CullMode = D3D11_CULL_BACK;
+	solidDesc.CullMode = D3D11_CULL_NONE; // TODO: Change to BACK
     ExitIfFailed(d3d11Device->CreateRasterizerState(&solidDesc, &Solid));
 
     D3D11_RASTERIZER_DESC wfdesc;
@@ -346,23 +456,82 @@ void Init()
     wfdesc.CullMode = D3D11_CULL_NONE;
     ExitIfFailed(d3d11Device->CreateRasterizerState(&wfdesc, &WireFrame));
 
-    //Camera information
-    camPosition = { 0.0f, 3.0f, -8.0f };
-    camTarget = { 0.0f, 0.0f, 0.0f };
-    camUp = { 0.0f, 1.0f, 0.0f };
+    D3D11_SAMPLER_DESC samplerDesc;
+    ZeroMemory(&samplerDesc, sizeof(samplerDesc));
+    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    samplerDesc.MinLOD = 0;
+    samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+    ExitIfFailed(d3d11Device->CreateSamplerState(&samplerDesc, &CubesTexSamplerState));
 
-    //Set the View matrix
-    camView = MatrixLookAt(camPosition, camTarget, camUp);
+	Texture tex = LoadTexture("assets/textures/cat.jpg");
 
-    //Set the Projection matrix
-    camProjection = MatrixPerspective(0.4f * 3.14f, (float)Width / Height, 1.0f, 1000.0f);
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Width = tex.Width;
+    desc.Height = tex.Height;
+    desc.MipLevels = 1;
+    desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    desc.CPUAccessFlags = 0;
+    desc.MiscFlags = 0;
+
+    D3D11_SUBRESOURCE_DATA initData = {};
+    initData.pSysMem = tex.Pixels;
+    initData.SysMemPitch = tex.Width * 4; // 4 bytes per pixel (RGBA)
+
+    ID3D11Texture2D* texture = nullptr;
+	ExitIfFailed(d3d11Device->CreateTexture2D(&desc, &initData, &texture));
+
+    ExitIfFailed(d3d11Device->CreateShaderResourceView(texture, nullptr, &CubesTextureView));
+    texture->Release();
+    stbi_image_free(tex.Pixels);
+
+    //Define the Blending Equation
+    D3D11_BLEND_DESC blendDesc;
+    ZeroMemory(&blendDesc, sizeof(blendDesc));
+
+    D3D11_RENDER_TARGET_BLEND_DESC rtbd;
+    ZeroMemory(&rtbd, sizeof(rtbd));
+
+    rtbd.BlendEnable = true;
+    rtbd.SrcBlend = D3D11_BLEND_SRC_COLOR;
+    rtbd.DestBlend = D3D11_BLEND_BLEND_FACTOR;
+    rtbd.BlendOp = D3D11_BLEND_OP_ADD;
+    rtbd.SrcBlendAlpha = D3D11_BLEND_ONE;
+    rtbd.DestBlendAlpha = D3D11_BLEND_ZERO;
+    rtbd.BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    rtbd.RenderTargetWriteMask = D3D10_COLOR_WRITE_ENABLE_ALL;
+
+    blendDesc.AlphaToCoverageEnable = false;
+    blendDesc.RenderTarget[0] = rtbd;
+
+    d3d11Device->CreateBlendState(&blendDesc, &Transparency);
+
+    //Create the Counter Clockwise and Clockwise Culling States
+    D3D11_RASTERIZER_DESC cmdesc;
+    ZeroMemory(&cmdesc, sizeof(D3D11_RASTERIZER_DESC));
+
+    cmdesc.FillMode = D3D11_FILL_SOLID;
+    cmdesc.CullMode = D3D11_CULL_BACK;
+
+    cmdesc.FrontCounterClockwise = true;
+    ExitIfFailed(d3d11Device->CreateRasterizerState(&cmdesc, &CCWcullMode));
+
+    cmdesc.FrontCounterClockwise = false;
+    ExitIfFailed(d3d11Device->CreateRasterizerState(&cmdesc, &CWcullMode));
 
     D3D11DeletionQueue.PushFunction([=]() {
         SwapChain->Release();
         d3d11Device->Release();
         d3d11DevCon->Release();
-        squareVertBuffer->Release();
-        squareIndexBuffer->Release();
+        CubesVertBuffer->Release();
+        CubesIndexBuffer->Release();
         VS->Release();
         PS->Release();
         VS_Buffer->Release();
@@ -373,7 +542,23 @@ void Init()
         cbPerObjectBuffer->Release();
         WireFrame->Release();
         Solid->Release();
+        Transparency->Release();
+        CCWcullMode->Release();
+        CWcullMode->Release();
+		CubesTextureView->Release();
+		CubesTexSamplerState->Release();
         });
+
+    //Camera information
+    camPosition = { 0.0f, 3.0f, -8.0f };
+    camTarget = { 0.0f, 0.0f, 0.0f };
+    camUp = { 0.0f, 1.0f, 0.0f };
+
+    //Set the View matrix
+    camView = MatrixLookAt(camPosition, camTarget, camUp);
+
+    //Set the Projection matrix
+    camProjection = MatrixPerspective(0.4f * 3.14f, (float)GameResolutionWidth / GameResolutionHeight, 1.0f, 1000.0f);
 }
 
 void Cleanup()
@@ -417,29 +602,91 @@ void Update()
 void Draw()
 {
     //Clear our backbuffer
-	float bgColor[4] = { 0.1, 0.3, 0.8, 1.0f };
+    float bgColor[4] = { (0.0f, 0.0f, 0.0f, 0.0f) };
     d3d11DevCon->ClearRenderTargetView(renderTargetView, bgColor);
 
     //Refresh the Depth/Stencil view
     d3d11DevCon->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+    //"fine-tune" the blending equation
+    float blendFactor[] = { 0.75f, 0.75f, 0.75f, 1.0f };
+
+    //Set the default blend state (no blending) for opaque objects
+    d3d11DevCon->OMSetBlendState(0, 0, 0xffffffff);
+
+    //Render opaque objects//
+
+    //Set the blend state for transparent objects
+    d3d11DevCon->OMSetBlendState(Transparency, blendFactor, 0xffffffff);
+
+    //*****Transparency Depth Ordering*****//
+    //Find which transparent object is further from the camera
+    //So we can render the objects in depth order to the render target
+
+    //Find distance from first cube to camera
+    V3 cubePos = {0.0f, 0.0f, 0.0f};
+
+	cubePos.X = cube1World.M[3][0];
+	cubePos.Y = cube1World.M[3][1];
+	cubePos.Z = cube1World.M[3][2];
+
+
+    float distX = cubePos.X - camPosition.X;
+    float distY = cubePos.Y - camPosition.Y;
+    float distZ = cubePos.Z - camPosition.Z;
+
+    float cube1Dist = distX * distX + distY * distY + distZ * distZ;
+
+    //Find distance from second cube to camera
+    cubePos = { 0.0f, 0.0f, 0.0f };
+    cubePos.X = cube2World.M[3][0];
+    cubePos.Y = cube2World.M[3][1];
+    cubePos.Z = cube2World.M[3][2];
+
+    distX = cubePos.X - camPosition.X;
+    distY = cubePos.Y - camPosition.Y;
+    distZ = cubePos.Z - camPosition.Z;
+
+    float cube2Dist = distX * distX + distY * distY + distZ * distZ;
+
+    //If the first cubes distance is less than the second cubes
+    if (cube1Dist < cube2Dist)
+    {
+        //Switch the order in which the cubes are drawn
+        M4 tempMatrix = cube1World;
+        cube1World = cube2World;
+        cube2World = tempMatrix;
+    }
 
     //Set the WVP matrix and send it to the constant buffer in effect file
     WVP = cube1World * camView * camProjection;
     cbPerObj.WVP = MatrixTranspose(WVP);
     d3d11DevCon->UpdateSubresource(cbPerObjectBuffer, 0, NULL, &cbPerObj, 0, 0);
     d3d11DevCon->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
+    d3d11DevCon->PSSetShaderResources(0, 1, &CubesTextureView);
+    d3d11DevCon->PSSetSamplers(0, 1, &CubesTexSamplerState);
 
+    //Counter clockwise culling first because we need the back side of
+    //the cube to be rendered first, so the front side can blend with it
+    d3d11DevCon->RSSetState(CCWcullMode);
     //Draw the first cube
-    d3d11DevCon->RSSetState(WireFrame);
+    d3d11DevCon->DrawIndexed(36, 0, 0);
+
+    d3d11DevCon->RSSetState(CWcullMode);
     d3d11DevCon->DrawIndexed(36, 0, 0);
 
     WVP = cube2World * camView * camProjection;
     cbPerObj.WVP = MatrixTranspose(WVP);
     d3d11DevCon->UpdateSubresource(cbPerObjectBuffer, 0, NULL, &cbPerObj, 0, 0);
     d3d11DevCon->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
+    d3d11DevCon->PSSetShaderResources(0, 1, &CubesTextureView);
+    d3d11DevCon->PSSetSamplers(0, 1, &CubesTexSamplerState);
 
+    d3d11DevCon->RSSetState(CCWcullMode);
     //Draw the second cube
-    d3d11DevCon->RSSetState(Solid);
+    d3d11DevCon->DrawIndexed(36, 0, 0);
+
+    d3d11DevCon->RSSetState(CWcullMode);
     d3d11DevCon->DrawIndexed(36, 0, 0);
 
     //Present the backbuffer to the screen

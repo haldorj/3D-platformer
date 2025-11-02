@@ -14,6 +14,7 @@ debugdir "%{wks.location}"
 
 IncludeDir = {}
 IncludeDir["SDL3"] = "Abyss/vendor/SDL3/include"
+IncludeDir["stb"] = "Abyss/vendor/stb"
 
 project "Abyss"
 	location "Abyss"
@@ -40,6 +41,7 @@ project "Abyss"
 	{
 		"%{prj.name}/src",
 		"%{IncludeDir.SDL3}",
+		"%{IncludeDir.stb}",
 	}
 
 	links 
