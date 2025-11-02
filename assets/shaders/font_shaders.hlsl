@@ -7,20 +7,18 @@ cbuffer cbPerObject
 
 struct PSInput
 {
-    float4 position : SV_POSITION;
-    float4 normal   : NORMAL;
+    float2 position : SV_POSITION;
     float2 texCoord : TEXCOORD;
 };
 
 Texture2D g_texture : register(t0);
 SamplerState g_sampler : register(s0);
 
-PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 texCoord : TEXCOORD)
+PSInput VSMain(float2 position : POSITION, float2 texCoord : TEXCOORD)
 {
     PSInput result;
-    
-    result.position = mul(position, WVP);
-    result.normal = normal;
+
+    result.position = mul(float4(position, 0.0f, 1.0f), WVP);
     result.texCoord = texCoord;
 
     return result;
@@ -33,5 +31,5 @@ float4 PSMain(PSInput input) : SV_TARGET
     clip(diffuse.a - 0.1);
     
     //return input.normal;
-    return diffuse;
+    return diffuse * Color;
 }

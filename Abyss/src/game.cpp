@@ -33,7 +33,7 @@ struct Vertex
 {
     V3 Position;
     V3 Color;
-    V2 UV;
+    V2 TexCoord;
 };
 
 struct Texture
@@ -53,7 +53,8 @@ struct FontGlyph
 
 struct CbPerObject
 {
-    M4  WVP;
+    M4 WVP;
+    V4 Color;
 };
 
 constexpr int WindowWidth = 1280;
@@ -78,9 +79,16 @@ namespace
     ID3D10Blob* VsBuffer;
     ID3D10Blob* PsBuffer;
     ID3D11InputLayout* VertLayout;
+
     ID3D11Buffer* CbPerObjectBuffer;
     ID3D11RasterizerState* Solid;
     ID3D11RasterizerState* WireFrame;
+
+    ID3D11VertexShader* FontVS;
+    ID3D11PixelShader* FontPS;
+    ID3D10Blob* FontVsBuffer;
+    ID3D10Blob* FontPsBuffer;
+    ID3D11InputLayout* FontVertLayout;
 
     ID3D11ShaderResourceView* CubesTextureView;
     ID3D11SamplerState* CubesTexSamplerState;
@@ -186,7 +194,6 @@ static std::string ReadEntireFile(const std::string& filename)
     return buffer;
 }
 
-
 std::map<char, FontGlyph> LoadFontGlyphs(const std::string& path)
 {
     std::map<char, FontGlyph> result;
@@ -270,104 +277,8 @@ static Texture LoadTexture(const char* filename)
     return texture;
 }
 
-static void Init()
+static void InitMainRenderingPipeline()
 {
-    // We initialize SDL and create a window with it.
-    SDL_Init(SDL_INIT_VIDEO);
-
-    Window = SDL_CreateWindow(
-        " ",
-        WindowWidth,
-        WindowHeight,
-        0);
-
-    if (!Window)
-    {
-        std::print("Failed to create SDL window: {}", SDL_GetError());
-        return;
-    }
-
-    SDL_PropertiesID props = SDL_GetWindowProperties(Window);
-    auto hwnd = static_cast<HWND>(SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
-
-    if (!hwnd)
-    {
-        std::print("Failed to get HWND: {}", SDL_GetError());
-        return;
-    }
-
-    //////////////////////////////////
-    // Init D3D11                   //
-    //////////////////////////////////
-
-    //Describe our Buffer
-    DXGI_MODE_DESC bufferDesc;
-    ZeroMemory(&bufferDesc, sizeof(DXGI_MODE_DESC));
-
-    bufferDesc.Width = GameResolutionWidth;
-    bufferDesc.Height = GameResolutionHeight;
-    bufferDesc.RefreshRate.Numerator = 60;
-    bufferDesc.RefreshRate.Denominator = 1;
-    bufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    bufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-    bufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-
-    //Describe our SwapChain
-    DXGI_SWAP_CHAIN_DESC swapChainDesc;
-
-    ZeroMemory(&swapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
-
-    swapChainDesc.BufferDesc = bufferDesc;
-    swapChainDesc.SampleDesc.Count = 1;
-    swapChainDesc.SampleDesc.Quality = 0;
-    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swapChainDesc.BufferCount = 1;
-    swapChainDesc.OutputWindow = hwnd;
-    swapChainDesc.Windowed = TRUE;
-    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-
-    UINT createDeviceFlags = 0;
-#if defined(_DEBUG)
-    createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
-
-    //Create our SwapChain
-    ExitIfFailed(D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags, nullptr, NULL,
-                                               D3D11_SDK_VERSION, &swapChainDesc, &SwapChain, &D3d11Device, nullptr, &D3d11DevContext));
-
-    //Create our BackBuffer
-    ID3D11Texture2D* backBuffer;
-    ExitIfFailed(SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer));
-
-    //Create our Render Target
-    ExitIfFailed(D3d11Device->CreateRenderTargetView(backBuffer, nullptr, &RenderTargetView));
-    backBuffer->Release();
-
-    //Describe our Depth/Stencil Buffer
-    D3D11_TEXTURE2D_DESC depthStencilDesc;
-
-    depthStencilDesc.Width = GameResolutionWidth;
-    depthStencilDesc.Height = GameResolutionHeight;
-    depthStencilDesc.MipLevels = 1;
-    depthStencilDesc.ArraySize = 1;
-    depthStencilDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-    depthStencilDesc.SampleDesc.Count = 1;
-    depthStencilDesc.SampleDesc.Quality = 0;
-    depthStencilDesc.Usage = D3D11_USAGE_DEFAULT;
-    depthStencilDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-    depthStencilDesc.CPUAccessFlags = 0;
-    depthStencilDesc.MiscFlags = 0;
-
-    //Create the Depth/Stencil View
-    ExitIfFailed(D3d11Device->CreateTexture2D(&depthStencilDesc, nullptr, &DepthStencilBuffer));
-    ExitIfFailed(D3d11Device->CreateDepthStencilView(DepthStencilBuffer, nullptr, &DepthStencilView));
-
-    //Set our Render Target
-    D3d11DevContext->OMSetRenderTargets(1, &RenderTargetView, DepthStencilView);
-
-    //////////////////////////////////
-    // Init Rendering Pipeline      //
-    //////////////////////////////////
     LPCWSTR shaderPath = L"assets/shaders/shaders.hlsl";
 
     //Create the Shader Objects
@@ -510,11 +421,204 @@ static void Init()
     ExitIfFailed(D3d11Device->CreateInputLayout(layout, numElements, VsBuffer->GetBufferPointer(),
         VsBuffer->GetBufferSize(), &VertLayout));
 
-    //Set the Input Layout
     D3d11DevContext->IASetInputLayout(VertLayout);
-
-    //Set Primitive Topology
     D3d11DevContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
+static void InitFontRenderingPipeline()
+{
+    LPCWSTR shaderPath = L"assets/shaders/font_shaders.hlsl";
+
+    //Create the Shader Objects
+    ExitIfFailed(D3DCompileFromFile(
+        shaderPath,
+        nullptr,
+        nullptr,
+        "VSMain",
+        "vs_5_0",
+        0,
+        0,
+        &FontVsBuffer,
+        nullptr));
+
+    ExitIfFailed(D3DCompileFromFile(
+        shaderPath,
+        nullptr,
+        nullptr,
+        "PSMain",
+        "ps_5_0",
+        0,
+        0,
+        &FontPsBuffer,
+        nullptr));
+
+    ExitIfFailed(D3d11Device->CreateVertexShader(FontVsBuffer->GetBufferPointer(), FontVsBuffer->GetBufferSize(), nullptr, &FontVS));
+    ExitIfFailed(D3d11Device->CreatePixelShader(FontPsBuffer->GetBufferPointer(), FontPsBuffer->GetBufferSize(), nullptr, &FontPS));
+
+    //Set Initial Vertex and Pixel Shaders
+    D3d11DevContext->VSSetShader(FontVS, nullptr, 0);
+    D3d11DevContext->PSSetShader(FontPS, nullptr, 0);
+
+    //Create the vertex buffer (cube)
+    std::vector vertices =
+    {
+        -1.0f,  1.0f, 0.0f, 0.0f, // Top Left
+         1.0f,  1.0f, 1.0f, 0.0f, // Top Right
+         1.0f, -1.0f, 1.0f, 1.0f, // Bottom Right
+		-1.0f, -1.0f, 0.0f, 1.0f  // Bottom Left
+    };
+
+    uint32_t indices[] =
+    {
+        0, 1, 2,
+		0, 2, 3
+    };
+
+    D3D11_INPUT_ELEMENT_DESC layout[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 8, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+    UINT numElements = ARRAYSIZE(layout);
+
+    D3D11_BUFFER_DESC indexBufferDesc;
+    ZeroMemory(&indexBufferDesc, sizeof(indexBufferDesc));
+
+    indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    indexBufferDesc.ByteWidth = sizeof(indices);
+    indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    indexBufferDesc.CPUAccessFlags = 0;
+    indexBufferDesc.MiscFlags = 0;
+
+    D3D11_SUBRESOURCE_DATA indexInitData;
+
+    indexInitData.pSysMem = indices;
+    ExitIfFailed(D3d11Device->CreateBuffer(&indexBufferDesc, &indexInitData, &CubesIndexBuffer));
+
+    D3d11DevContext->IASetIndexBuffer(CubesIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+    D3D11_BUFFER_DESC vertexBufferDesc;
+    ZeroMemory(&vertexBufferDesc, sizeof(vertexBufferDesc));
+
+    vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    vertexBufferDesc.ByteWidth = sizeof(Vertex) * static_cast<UINT>(vertices.size());
+    vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    vertexBufferDesc.CPUAccessFlags = 0;
+    vertexBufferDesc.MiscFlags = 0;
+
+    D3D11_SUBRESOURCE_DATA vertexBufferData;
+
+    ZeroMemory(&vertexBufferData, sizeof(vertexBufferData));
+    vertexBufferData.pSysMem = vertices.data();
+    ExitIfFailed(D3d11Device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &CubesVertBuffer));
+
+    //Set the vertex buffer
+    UINT stride = sizeof(Vertex);
+    UINT offset = 0;
+    D3d11DevContext->IASetVertexBuffers(0, 1, &CubesVertBuffer, &stride, &offset);
+
+    //Create the Input Layout
+    ExitIfFailed(D3d11Device->CreateInputLayout(layout, numElements, VsBuffer->GetBufferPointer(),
+        VsBuffer->GetBufferSize(), &FontVertLayout));
+
+    D3d11DevContext->IASetInputLayout(FontVertLayout);
+    D3d11DevContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
+static void Init()
+{
+    // We initialize SDL and create a window with it.
+    SDL_Init(SDL_INIT_VIDEO);
+
+    Window = SDL_CreateWindow(
+        " ",
+        WindowWidth,
+        WindowHeight,
+        0);
+
+    if (!Window)
+    {
+        std::print("Failed to create SDL window: {}", SDL_GetError());
+        return;
+    }
+
+    SDL_PropertiesID props = SDL_GetWindowProperties(Window);
+    auto hwnd = static_cast<HWND>(SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
+
+    if (!hwnd)
+    {
+        std::print("Failed to get HWND: {}", SDL_GetError());
+        return;
+    }
+
+    //////////////////////////////////
+    // Init D3D11                   //
+    //////////////////////////////////
+
+    //Describe our Buffer
+    DXGI_MODE_DESC bufferDesc;
+    ZeroMemory(&bufferDesc, sizeof(DXGI_MODE_DESC));
+
+    bufferDesc.Width = GameResolutionWidth;
+    bufferDesc.Height = GameResolutionHeight;
+    bufferDesc.RefreshRate.Numerator = 60;
+    bufferDesc.RefreshRate.Denominator = 1;
+    bufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    bufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+    bufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+
+    //Describe our SwapChain
+    DXGI_SWAP_CHAIN_DESC swapChainDesc;
+
+    ZeroMemory(&swapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
+
+    swapChainDesc.BufferDesc = bufferDesc;
+    swapChainDesc.SampleDesc.Count = 1;
+    swapChainDesc.SampleDesc.Quality = 0;
+    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapChainDesc.BufferCount = 1;
+    swapChainDesc.OutputWindow = hwnd;
+    swapChainDesc.Windowed = TRUE;
+    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+
+    UINT createDeviceFlags = 0;
+#if defined(_DEBUG)
+    createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+
+    //Create our SwapChain
+    ExitIfFailed(D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags, nullptr, NULL,
+                                               D3D11_SDK_VERSION, &swapChainDesc, &SwapChain, &D3d11Device, nullptr, &D3d11DevContext));
+
+    //Create our BackBuffer
+    ID3D11Texture2D* backBuffer;
+    ExitIfFailed(SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer));
+
+    //Create our Render Target
+    ExitIfFailed(D3d11Device->CreateRenderTargetView(backBuffer, nullptr, &RenderTargetView));
+    backBuffer->Release();
+
+    //Describe our Depth/Stencil Buffer
+    D3D11_TEXTURE2D_DESC depthStencilDesc;
+
+    depthStencilDesc.Width = GameResolutionWidth;
+    depthStencilDesc.Height = GameResolutionHeight;
+    depthStencilDesc.MipLevels = 1;
+    depthStencilDesc.ArraySize = 1;
+    depthStencilDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    depthStencilDesc.SampleDesc.Count = 1;
+    depthStencilDesc.SampleDesc.Quality = 0;
+    depthStencilDesc.Usage = D3D11_USAGE_DEFAULT;
+    depthStencilDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+    depthStencilDesc.CPUAccessFlags = 0;
+    depthStencilDesc.MiscFlags = 0;
+
+    //Create the Depth/Stencil View
+    ExitIfFailed(D3d11Device->CreateTexture2D(&depthStencilDesc, nullptr, &DepthStencilBuffer));
+    ExitIfFailed(D3d11Device->CreateDepthStencilView(DepthStencilBuffer, nullptr, &DepthStencilView));
+
+    //Set our Render Target
+    D3d11DevContext->OMSetRenderTargets(1, &RenderTargetView, DepthStencilView);
 
     //Create the Viewport
     D3D11_VIEWPORT viewport;
@@ -530,6 +634,9 @@ static void Init()
     //Set the Viewport
     D3d11DevContext->RSSetViewports(1, &viewport);
 
+    InitMainRenderingPipeline();
+	//InitFontRenderingPipeline();
+
     //Create the buffer to send to the constant buffer in effect file
     D3D11_BUFFER_DESC constantBufferDesc;
     ZeroMemory(&constantBufferDesc, sizeof(D3D11_BUFFER_DESC));
@@ -542,17 +649,7 @@ static void Init()
 
     ExitIfFailed(D3d11Device->CreateBuffer(&constantBufferDesc, nullptr, &CbPerObjectBuffer));
 
-    D3D11_SAMPLER_DESC samplerDesc;
-    ZeroMemory(&samplerDesc, sizeof(samplerDesc));
-    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-    samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-    samplerDesc.MinLOD = 0;
-    samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
-    ExitIfFailed(D3d11Device->CreateSamplerState(&samplerDesc, &CubesTexSamplerState));
-
+	// Texture Loading Test
     Texture tex = LoadTexture("assets/textures/cage.png");
 
     D3D11_TEXTURE2D_DESC desc = {};
@@ -576,7 +673,21 @@ static void Init()
 
     ExitIfFailed(D3d11Device->CreateShaderResourceView(texture, nullptr, &CubesTextureView));
     texture->Release();
-    //stbi_image_free(tex.Pixels);
+
+    //stbi_image_free(tex.Pixels.data());
+
+    D3D11_SAMPLER_DESC samplerDesc;
+    ZeroMemory(&samplerDesc, sizeof(samplerDesc));
+    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    samplerDesc.MinLOD = 0;
+    samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+    ExitIfFailed(D3d11Device->CreateSamplerState(&samplerDesc, &CubesTexSamplerState));
+
+    // Rasterizer States 
 
     //Define the Blending Equation
     D3D11_BLEND_DESC blendDesc;
