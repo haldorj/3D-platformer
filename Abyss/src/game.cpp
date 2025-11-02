@@ -5,10 +5,7 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
-#include "SDL3/SDL.h"
-
 #include "handmade_math.h"
-
 
 struct DeletionQueue
 {
@@ -35,7 +32,7 @@ struct Vertex
 {
     V3 Position;
     V3 Color;
-    V2 TexCoord;
+    V2 UV;
 };
 
 struct Texture
@@ -56,63 +53,66 @@ constexpr int WindowHeight = 720;
 constexpr int GameResolutionWidth = 640;
 constexpr int GameResolutionHeight = 360;
 
-IDXGISwapChain* SwapChain;
-ID3D11Device* D3d11Device;
-ID3D11DeviceContext* D3d11DevContext;
-ID3D11RenderTargetView* RenderTargetView;
-ID3D11DepthStencilView* DepthStencilView;
-ID3D11Texture2D* DepthStencilBuffer;
+namespace 
+{
+    IDXGISwapChain* SwapChain;
+    ID3D11Device* D3d11Device;
+    ID3D11DeviceContext* D3d11DevContext;
+    ID3D11RenderTargetView* RenderTargetView;
+    ID3D11DepthStencilView* DepthStencilView;
+    ID3D11Texture2D* DepthStencilBuffer;
 
-ID3D11Buffer* CubesIndexBuffer;
-ID3D11Buffer* CubesVertBuffer;
-ID3D11VertexShader* VS;
-ID3D11PixelShader* PS;
-ID3D10Blob* VsBuffer;
-ID3D10Blob* PsBuffer;
-ID3D11InputLayout* VertLayout;
-ID3D11Buffer* CbPerObjectBuffer;
-ID3D11RasterizerState* Solid;
-ID3D11RasterizerState* WireFrame;
+    ID3D11Buffer* CubesIndexBuffer;
+    ID3D11Buffer* CubesVertBuffer;
+    ID3D11VertexShader* VS;
+    ID3D11PixelShader* PS;
+    ID3D10Blob* VsBuffer;
+    ID3D10Blob* PsBuffer;
+    ID3D11InputLayout* VertLayout;
+    ID3D11Buffer* CbPerObjectBuffer;
+    ID3D11RasterizerState* Solid;
+    ID3D11RasterizerState* WireFrame;
 
-ID3D11ShaderResourceView* CubesTextureView;
-ID3D11SamplerState* CubesTexSamplerState;
-ID3D11BlendState* Transparency;
-ID3D11RasterizerState* CounterClockwiseCullMode;
-ID3D11RasterizerState* ClockwiseCullMode;
-ID3D11RasterizerState* NoCull;
+    ID3D11ShaderResourceView* CubesTextureView;
+    ID3D11SamplerState* CubesTexSamplerState;
+    ID3D11BlendState* Transparency;
+    ID3D11RasterizerState* CounterClockwiseCullMode;
+    ID3D11RasterizerState* ClockwiseCullMode;
+    ID3D11RasterizerState* NoCull;
 
-CbPerObject CbPerObj;
+    CbPerObject CbPerObj;
 
-M4 Wvp;
-M4 Cube1World;
-M4 Cube2World;
-M4 CamView;
-M4 CamProjection;
+    M4 Wvp;
+    M4 Cube1World;
+    M4 Cube2World;
+    M4 CamView;
+    M4 CamProjection;
 
-V3 CamPosition;
-V3 CamTarget;
-V3 CamUp;
+    V3 CamPosition;
+    V3 CamTarget;
+    V3 CamUp;
 
-DeletionQueue D3D11DeletionQueue;
+    DeletionQueue D3D11DeletionQueue;
 
-SDL_Window* Window{};
+    SDL_Window* Window{};
 
-M4 Rotation;
-M4 Scale;
-M4 Translation;
-float Rot = 0.01f;
+    M4 Rotation;
+    M4 Scale;
+    M4 Translation;
+    float Rot = 0.01f;
+}
 
 static void ExitIfFailed(const HRESULT hr)
 {
     if (FAILED(hr))
     {
-        _com_error err(hr);
-        LPCTSTR errMsg = err.ErrorMessage();
+        const _com_error err(hr);
+        const LPCTSTR errMsg = err.ErrorMessage();
         char buffer[265];
         WideCharToMultiByte(CP_ACP, 0, errMsg, -1, buffer, sizeof(buffer), nullptr, nullptr);
 
         std::print("HRESULT failed with error: {}", buffer);
-        exit(-1);
+        std::exit(-1);
     }
 }
 
@@ -128,7 +128,8 @@ static Texture CreateErrorTexture()
         for (auto x = 0; x < width; ++x)
         {
             const int index = (y * width + x) * 4;
-            if (int checkSize = 16; ((x / checkSize) % 2) == ((y / checkSize) % 2))
+            constexpr int checkSize = 16;
+            if (x / checkSize % 2 == y / checkSize % 2)
             {
                 pixels[index + 0] = 255; // R
                 pixels[index + 1] = 0;   // G
@@ -186,7 +187,7 @@ static Texture LoadFontTexture(const std::string& path, const char codepoint)
     stbtt_fontinfo font{};
     stbtt_InitFont(&font, data, stbtt_GetFontOffsetForIndex(data, 0));
 
-    constexpr float pixelHeight = 32.0f;
+    constexpr float pixelHeight = 64.0f;
     const float scale = stbtt_ScaleForPixelHeight(&font, pixelHeight);
     int width, height, xOffset, yOffset;
 	const auto bitmap = stbtt_GetCodepointBitmap(
@@ -443,7 +444,7 @@ static void Init()
     D3D11_SUBRESOURCE_DATA indexInitData;
 
     indexInitData.pSysMem = indices;
-    D3d11Device->CreateBuffer(&indexBufferDesc, &indexInitData, &CubesIndexBuffer);
+    ExitIfFailed(D3d11Device->CreateBuffer(&indexBufferDesc, &indexInitData, &CubesIndexBuffer));
 
     D3d11DevContext->IASetIndexBuffer(CubesIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
@@ -468,8 +469,8 @@ static void Init()
     D3d11DevContext->IASetVertexBuffers(0, 1, &CubesVertBuffer, &stride, &offset);
 
     //Create the Input Layout
-    D3d11Device->CreateInputLayout(layout, numElements, VsBuffer->GetBufferPointer(),
-        VsBuffer->GetBufferSize(), &VertLayout);
+    ExitIfFailed(D3d11Device->CreateInputLayout(layout, numElements, VsBuffer->GetBufferPointer(),
+        VsBuffer->GetBufferSize(), &VertLayout));
 
     //Set the Input Layout
     D3d11DevContext->IASetInputLayout(VertLayout);
@@ -515,7 +516,7 @@ static void Init()
     ExitIfFailed(D3d11Device->CreateSamplerState(&samplerDesc, &CubesTexSamplerState));
 
     //Texture tex = LoadTexture("assets/textures/cage.png");
-	Texture tex = LoadFontTexture("C:/Windows/Fonts/arial.ttf", 'X');
+	Texture tex = LoadFontTexture("C:/Windows/Fonts/arial.ttf", '8');
 
     D3D11_TEXTURE2D_DESC desc = {};
     desc.Width = tex.Width;
@@ -559,7 +560,7 @@ static void Init()
     blendDesc.AlphaToCoverageEnable = false;
     blendDesc.RenderTarget[0] = renderTargetBlendDesc;
 
-    D3d11Device->CreateBlendState(&blendDesc, &Transparency);
+    ExitIfFailed(D3d11Device->CreateBlendState(&blendDesc, &Transparency));
 
     D3D11_RASTERIZER_DESC solidDesc;
     ZeroMemory(&solidDesc, sizeof(D3D11_RASTERIZER_DESC));
@@ -577,7 +578,7 @@ static void Init()
     ZeroMemory(&noCullDesc, sizeof(D3D11_RASTERIZER_DESC));
     noCullDesc.FillMode = D3D11_FILL_SOLID;
     noCullDesc.CullMode = D3D11_CULL_NONE;
-    D3d11Device->CreateRasterizerState(&noCullDesc, &NoCull);
+    ExitIfFailed(D3d11Device->CreateRasterizerState(&noCullDesc, &NoCull));
 
     //Create the Counterclockwise and Clockwise Culling States
     D3D11_RASTERIZER_DESC rasterizerDesc;
@@ -632,7 +633,7 @@ static void Cleanup()
     SDL_DestroyWindow(Window);
 }
 
-void Update()
+static void Update()
 {
     //Keep the cubes rotating
     Rot += .00005f;
@@ -659,23 +660,21 @@ void Update()
     Cube2World = Rotation * Scale;
 }
 
-void Draw()
+static void Draw()
 {
     //Clear our back buffer (sky blue)
-    float bgColor[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
+    constexpr float bgColor[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
     D3d11DevContext->ClearRenderTargetView(RenderTargetView, bgColor);
 
     //Refresh the Depth/Stencil view
     D3d11DevContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
-    ///////////////**************new**************////////////////////
     //Enable the Default Rasterizer State
     D3d11DevContext->RSSetState(nullptr);
     //Draw objects that will use backface culling
 
     //Turn off backface culling
     D3d11DevContext->RSSetState(NoCull);
-    ///////////////**************new**************////////////////////
 
     //Set the WVP matrix and send it to the constant buffer in effect file
     Wvp = Cube1World * CamView * CamProjection;
