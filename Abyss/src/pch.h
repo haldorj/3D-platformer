@@ -1,7 +1,5 @@
 #pragma once
 
-#include "SDL3/SDL.h"
-
 #include <fstream>
 #include <string>
 #include <iostream>
@@ -10,7 +8,6 @@
 #include <functional>
 #include <ranges>
 #include <print>
-#include <math.h>
 
 #ifdef __linux__ 
 
