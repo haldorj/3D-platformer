@@ -6,9 +6,11 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\Renderer\D3D11_Renderer.cpp">
-      <Filter>Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\game.cpp" />
+    <ClCompile Include="src\pch.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\handmade_math.h" />
+    <ClInclude Include="src\pch.h" />
   </ItemGroup>
 </Project>
