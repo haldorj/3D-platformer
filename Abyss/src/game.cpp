@@ -1,4 +1,4 @@
-#include "SDL3/SDL.h"
+#include "pch.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -6,22 +6,6 @@
 #include "stb_truetype.h"
 
 #include "handmade_math.h"
-
-#include <fstream>
-#include <string>
-#include <iostream>
-#include <cstdint>
-#include <deque>
-#include <functional>
-#include <ranges>
-#include <print>
-
-// Windows includes
-#include <windows.h>
-
-#include <d3d11.h>
-#include <d3dcompiler.h>
-#include <comdef.h>
 
 namespace Game {
 

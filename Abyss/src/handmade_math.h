@@ -1,5 +1,5 @@
 #pragma once
-#include <math.h>
+
 
 struct V2
 {
@@ -305,16 +305,16 @@ inline M4 MatrixOrthographic(float width, float height, float zn, float zf)
 	return result;
 }
 
-inline M4 MatrixPerspective(float fovY, float aspect, float near, float far)
+inline M4 MatrixPerspective(float fovY, float aspect, float nearPlane, float farPlane)
 {
 	M4 result = {};
 
 	float f = 1.0f / tanf(fovY / 2.0f);
 	result.M[0][0] = f / aspect;
 	result.M[1][1] = f;
-	result.M[2][2] = far / (far - near);
+	result.M[2][2] = farPlane / (farPlane - nearPlane);	
 	result.M[2][3] = 1.0f;
-	result.M[3][2] = (-near * far) / (far - near);
+	result.M[3][2] = (-nearPlane * farPlane) / (farPlane - nearPlane);
 	result.M[3][3] = 0.0f;
 
 	return result;
