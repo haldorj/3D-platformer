@@ -320,7 +320,7 @@ inline M4 MatrixPerspective(float fovY, float aspect, float near, float far)
 	return result;
 };
 
-inline M4 MatrixRotateX(float angle)
+inline M4 MatrixRotationX(float angle)
 {
 	M4 result = {};
 
@@ -340,7 +340,7 @@ inline M4 MatrixRotateX(float angle)
 	return result;
 }
 
-inline M4 MatrixRotateY(float angle)
+inline M4 MatrixRotationY(float angle)
 {
 	M4 result = {};
 	
@@ -360,7 +360,7 @@ inline M4 MatrixRotateY(float angle)
 	return result;
 }
 
-inline M4 MatrixRotateZ(float angle)
+inline M4 MatrixRotationZ(float angle)
 {
 	M4 result = {};
 	

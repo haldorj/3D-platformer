@@ -73,7 +73,8 @@ ID3D11Buffer* cbPerObjectBuffer;
 cbPerObject cbPerObj;
 
 M4 WVP;
-M4 World;
+M4 cube1World;
+M4 cube2World;
 M4 camView;
 M4 camProjection;
 
@@ -84,13 +85,6 @@ V3 camUp;
 DeletionQueue D3D11DeletionQueue;
     
 struct SDL_Window* window{};
-
-float red = 0.0f;
-float green = 0.0f;
-float blue = 0.0f;
-int colormodr = 1;
-int colormodg = 1;
-int colormodb = 1;
 
 static void ExitIfFailed(HRESULT hr)
 {
@@ -236,28 +230,27 @@ void Init()
     d3d11DevCon->VSSetShader(VS, 0, 0);
     d3d11DevCon->PSSetShader(PS, 0, 0);
 
-    //Create the vertex buffer (square)
+    //Create the vertex buffer (cube)
     std::vector<Vertex> v =
     {
-		// First square
-        {{-0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f} },
-        {{0.5f, 0.5f, 0.5f}, {0.0f, 1.0f, 0.0f} },
-        {{0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f} },
-        {{-0.5f, -0.5f, 0.5f}, {1.0f, 1.0f, 0.0f} },
-		// Second square (behind the first square, slightly top right)
-		{{0.0f, 1.0f, 0.7f}, {0.0f, 0.0f, 1.0f} },
-        {{1.0f, 1.0f, 0.7f}, {0.0f, 0.0f, 1.0f} },
-        {{1.0f, 0.0f, 0.7f}, {0.0f, 0.0f, 1.0f} },
-		{{0.0f, 0.0f, 0.7f}, {0.0f, 0.0f, 1.0f} },
+        {{ -1.0f, -1.0f, -1.0f }, {1.0f, 0.0f, 0.0f}},
+        {{ -1.0f,  1.0f, -1.0f }, {0.0f, 1.0f, 0.0f}},
+        {{  1.0f,  1.0f, -1.0f }, {0.0f, 0.0f, 1.0f}},
+        {{  1.0f, -1.0f, -1.0f }, {1.0f, 1.0f, 0.0f}},
+        {{ -1.0f, -1.0f,  1.0f }, {1.0f, 0.0f, 1.0f}},
+        {{ -1.0f,  1.0f,  1.0f }, {0.0f, 1.0f, 1.0f}},
+        {{  1.0f,  1.0f,  1.0f }, {1.0f, 1.0f, 1.0f}},
+		{{  1.0f, -1.0f,  1.0f }, {0.5f, 0.5f, 0.5f}},
     };
 
     uint32_t indices[] =
     {
-        0, 1, 2,
-        2, 3, 0,
-
-		4, 5, 6,
-		6, 7, 4,
+        0,1,2, 0,2,3,
+        4,6,5, 4,7,6,
+        4,5,1, 4,1,0,
+        3,2,6, 3,6,7,
+        1,5,6, 1,6,2,
+        4,0,3, 4,3,7
 	};
 
     D3D11_INPUT_ELEMENT_DESC layout[] =
@@ -340,7 +333,7 @@ void Init()
     ExitIfFailed(d3d11Device->CreateBuffer(&cbbd, NULL, &cbPerObjectBuffer));
 
     //Camera information
-    camPosition = { 0.0f, 0.0f, -0.5f };
+    camPosition = { 0.0f, 3.0f, -8.0f };
     camTarget = { 0.0f, 0.0f, 0.0f };
     camUp = { 0.0f, 1.0f, 0.0f };
 
@@ -373,43 +366,63 @@ void Cleanup()
     SDL_DestroyWindow(window);
 }
 
+M4 Rotation;
+M4 Scale;
+M4 Translation;
+float rot = 0.01f;
+
 void Update()
 {
-    //Update the colors of our scene
-    red += colormodr * 0.00005f;
-    green += colormodg * 0.00002f;
-    blue += colormodb * 0.00001f;
+    //Keep the cubes rotating
+    rot += .00005f;
+    if (rot > 6.28f)
+        rot = 0.0f;
 
-    if (red >= 1.0f || red <= 0.0f)
-        colormodr *= -1;
-    if (green >= 1.0f || green <= 0.0f)
-        colormodg *= -1;
-    if (blue >= 1.0f || blue <= 0.0f)
-        colormodb *= -1;
+    //Reset cube1World
+    cube1World = MatrixIdentity();
+
+    Rotation = MatrixRotationY(rot);
+    Translation = MatrixTranslation(0.0f, 0.0f, 4.0f);
+
+    //Set cube1's world space using the transformations
+    cube1World = Translation * Rotation;
+
+    //Reset cube2World
+    cube2World = MatrixIdentity();
+
+    //Define cube2's world space matrix
+    Rotation = MatrixRotationY(rot);
+    Scale = MatrixScaling(1.3f, 1.3f, 1.3f);
+
+    //Set cube2's world space matrix
+    cube2World = Rotation * Scale;
 }
 
 void Draw()
 {
     //Clear our backbuffer
-	float bgColor[4] = { red, green, blue, 1.0f };
+	float bgColor[4] = { 0.1, 0.3, 0.8, 1.0f };
     d3d11DevCon->ClearRenderTargetView(renderTargetView, bgColor);
 
     //Refresh the Depth/Stencil view
     d3d11DevCon->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
-    //Set the World/View/Projection matrix, then send it to constant buffer in effect file
-    World = MatrixIdentity();
-
-    WVP = World * camView * camProjection;
-
+    //Set the WVP matrix and send it to the constant buffer in effect file
+    WVP = cube1World * camView * camProjection;
     cbPerObj.WVP = MatrixTranspose(WVP);
-
     d3d11DevCon->UpdateSubresource(cbPerObjectBuffer, 0, NULL, &cbPerObj, 0, 0);
-
     d3d11DevCon->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
 
-    //Draw the square
-    d3d11DevCon->DrawIndexed(12, 0, 0);
+    //Draw the first cube
+    d3d11DevCon->DrawIndexed(36, 0, 0);
+
+    WVP = cube2World * camView * camProjection;
+    cbPerObj.WVP = MatrixTranspose(WVP);
+    d3d11DevCon->UpdateSubresource(cbPerObjectBuffer, 0, NULL, &cbPerObj, 0, 0);
+    d3d11DevCon->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
+
+    //Draw the second cube
+    d3d11DevCon->DrawIndexed(36, 0, 0);
 
     //Present the backbuffer to the screen
     SwapChain->Present(0, 0);
