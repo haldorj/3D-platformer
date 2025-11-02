@@ -43,6 +43,11 @@ struct Vertex
 	V3 Color;
 };
 
+struct cbPerObject
+{
+    M4  WVP;
+};
+
 constexpr int windowWidth = 1280;
 constexpr int windowHeight = 720;
 
@@ -63,6 +68,18 @@ ID3D11PixelShader* PS;
 ID3D10Blob* VS_Buffer;
 ID3D10Blob* PS_Buffer;
 ID3D11InputLayout* vertLayout;
+ID3D11Buffer* cbPerObjectBuffer;
+
+cbPerObject cbPerObj;
+
+M4 WVP;
+M4 World;
+M4 camView;
+M4 camProjection;
+
+V3 camPosition;
+V3 camTarget;
+V3 camUp;
 
 DeletionQueue D3D11DeletionQueue;
     
@@ -310,6 +327,29 @@ void Init()
     //Set the Viewport
     d3d11DevCon->RSSetViewports(1, &viewport);
 
+    //Create the buffer to send to the cbuffer in effect file
+    D3D11_BUFFER_DESC cbbd;
+    ZeroMemory(&cbbd, sizeof(D3D11_BUFFER_DESC));
+
+    cbbd.Usage = D3D11_USAGE_DEFAULT;
+    cbbd.ByteWidth = sizeof(cbPerObject);
+    cbbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    cbbd.CPUAccessFlags = 0;
+    cbbd.MiscFlags = 0;
+
+    ExitIfFailed(d3d11Device->CreateBuffer(&cbbd, NULL, &cbPerObjectBuffer));
+
+    //Camera information
+    camPosition = { 0.0f, 0.0f, -0.5f };
+    camTarget = { 0.0f, 0.0f, 0.0f };
+    camUp = { 0.0f, 1.0f, 0.0f };
+
+    //Set the View matrix
+    camView = MatrixLookAt(camPosition, camTarget, camUp);
+
+    //Set the Projection matrix
+    camProjection = MatrixPerspective(0.4f * 3.14f, (float)Width / Height, 1.0f, 1000.0f);
+
     D3D11DeletionQueue.PushFunction([=]() {
         SwapChain->Release();
         d3d11Device->Release();
@@ -323,6 +363,7 @@ void Init()
         vertLayout->Release();
         depthStencilView->Release();
         depthStencilBuffer->Release();
+        cbPerObjectBuffer->Release();
         });
 }
 
@@ -355,6 +396,17 @@ void Draw()
 
     //Refresh the Depth/Stencil view
     d3d11DevCon->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+    //Set the World/View/Projection matrix, then send it to constant buffer in effect file
+    World = MatrixIdentity();
+
+    WVP = World * camView * camProjection;
+
+    cbPerObj.WVP = MatrixTranspose(WVP);
+
+    d3d11DevCon->UpdateSubresource(cbPerObjectBuffer, 0, NULL, &cbPerObj, 0, 0);
+
+    d3d11DevCon->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
 
     //Draw the square
     d3d11DevCon->DrawIndexed(12, 0, 0);

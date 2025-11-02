@@ -1,9 +1,8 @@
 
-//cbuffer constantBuffer : register(b0)
-//{
-//    float4x4 model;
-//    float4x4 projection;
-//};
+cbuffer cbPerObject
+{
+    float4x4 WVP;
+};
 
 struct PSInput
 {
@@ -19,7 +18,7 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL)//, float2 tex
 {
     PSInput result;
     
-    result.position = position;
+    result.position = mul(position, WVP);
     result.normal = normal;
     // result.texCoord = texCoord;
 
