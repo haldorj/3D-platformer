@@ -88,6 +88,7 @@ ID3D11SamplerState* CubesTexSamplerState;
 ID3D11BlendState* Transparency;
 ID3D11RasterizerState* CCWcullMode;
 ID3D11RasterizerState* CWcullMode;
+ID3D11RasterizerState* noCull;
 
 cbPerObject cbPerObj;
 
@@ -444,18 +445,6 @@ void Init()
 
     ExitIfFailed(d3d11Device->CreateBuffer(&cbbd, NULL, &cbPerObjectBuffer));
 
-    D3D11_RASTERIZER_DESC solidDesc;
-    ZeroMemory(&solidDesc, sizeof(D3D11_RASTERIZER_DESC));
-    solidDesc.FillMode = D3D11_FILL_SOLID;
-	solidDesc.CullMode = D3D11_CULL_NONE; // TODO: Change to BACK
-    ExitIfFailed(d3d11Device->CreateRasterizerState(&solidDesc, &Solid));
-
-    D3D11_RASTERIZER_DESC wfdesc;
-    ZeroMemory(&wfdesc, sizeof(D3D11_RASTERIZER_DESC));
-    wfdesc.FillMode = D3D11_FILL_WIREFRAME;
-    wfdesc.CullMode = D3D11_CULL_NONE;
-    ExitIfFailed(d3d11Device->CreateRasterizerState(&wfdesc, &WireFrame));
-
     D3D11_SAMPLER_DESC samplerDesc;
     ZeroMemory(&samplerDesc, sizeof(samplerDesc));
     samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
@@ -467,7 +456,7 @@ void Init()
     samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
     ExitIfFailed(d3d11Device->CreateSamplerState(&samplerDesc, &CubesTexSamplerState));
 
-	Texture tex = LoadTexture("assets/textures/cat.jpg");
+	Texture tex = LoadTexture("assets/textures/cage.png");
 
     D3D11_TEXTURE2D_DESC desc = {};
     desc.Width = tex.Width;
@@ -513,16 +502,31 @@ void Init()
 
     d3d11Device->CreateBlendState(&blendDesc, &Transparency);
 
+    D3D11_RASTERIZER_DESC solidDesc;
+    ZeroMemory(&solidDesc, sizeof(D3D11_RASTERIZER_DESC));
+    solidDesc.FillMode = D3D11_FILL_SOLID;
+	solidDesc.CullMode = D3D11_CULL_NONE; // TODO: Change to BACK
+    ExitIfFailed(d3d11Device->CreateRasterizerState(&solidDesc, &Solid));
+
+    D3D11_RASTERIZER_DESC wfdesc;
+    ZeroMemory(&wfdesc, sizeof(D3D11_RASTERIZER_DESC));
+    wfdesc.FillMode = D3D11_FILL_WIREFRAME;
+    wfdesc.CullMode = D3D11_CULL_NONE;
+    ExitIfFailed(d3d11Device->CreateRasterizerState(&wfdesc, &WireFrame));
+
+    D3D11_RASTERIZER_DESC noCullDesc;
+    ZeroMemory(&noCullDesc, sizeof(D3D11_RASTERIZER_DESC));
+    noCullDesc.FillMode = D3D11_FILL_SOLID;
+    noCullDesc.CullMode = D3D11_CULL_NONE;
+    d3d11Device->CreateRasterizerState(&noCullDesc, &noCull);
+
     //Create the Counter Clockwise and Clockwise Culling States
     D3D11_RASTERIZER_DESC cmdesc;
     ZeroMemory(&cmdesc, sizeof(D3D11_RASTERIZER_DESC));
-
     cmdesc.FillMode = D3D11_FILL_SOLID;
     cmdesc.CullMode = D3D11_CULL_BACK;
-
     cmdesc.FrontCounterClockwise = true;
     ExitIfFailed(d3d11Device->CreateRasterizerState(&cmdesc, &CCWcullMode));
-
     cmdesc.FrontCounterClockwise = false;
     ExitIfFailed(d3d11Device->CreateRasterizerState(&cmdesc, &CWcullMode));
 
@@ -547,6 +551,7 @@ void Init()
         CWcullMode->Release();
 		CubesTextureView->Release();
 		CubesTexSamplerState->Release();
+        noCull->Release();
         });
 
     //Camera information
@@ -601,62 +606,21 @@ void Update()
 
 void Draw()
 {
-    //Clear our backbuffer
-    float bgColor[4] = { (0.0f, 0.0f, 0.0f, 0.0f) };
+    //Clear our backbuffer (sky blue)
+	float bgColor[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
     d3d11DevCon->ClearRenderTargetView(renderTargetView, bgColor);
 
     //Refresh the Depth/Stencil view
     d3d11DevCon->ClearDepthStencilView(depthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
-    //"fine-tune" the blending equation
-    float blendFactor[] = { 0.75f, 0.75f, 0.75f, 1.0f };
+    ///////////////**************new**************////////////////////
+    //Enable the Default Rasterizer State
+    d3d11DevCon->RSSetState(NULL);
+    //Draw objects that will use backface culling
 
-    //Set the default blend state (no blending) for opaque objects
-    d3d11DevCon->OMSetBlendState(0, 0, 0xffffffff);
-
-    //Render opaque objects//
-
-    //Set the blend state for transparent objects
-    d3d11DevCon->OMSetBlendState(Transparency, blendFactor, 0xffffffff);
-
-    //*****Transparency Depth Ordering*****//
-    //Find which transparent object is further from the camera
-    //So we can render the objects in depth order to the render target
-
-    //Find distance from first cube to camera
-    V3 cubePos = {0.0f, 0.0f, 0.0f};
-
-	cubePos.X = cube1World.M[3][0];
-	cubePos.Y = cube1World.M[3][1];
-	cubePos.Z = cube1World.M[3][2];
-
-
-    float distX = cubePos.X - camPosition.X;
-    float distY = cubePos.Y - camPosition.Y;
-    float distZ = cubePos.Z - camPosition.Z;
-
-    float cube1Dist = distX * distX + distY * distY + distZ * distZ;
-
-    //Find distance from second cube to camera
-    cubePos = { 0.0f, 0.0f, 0.0f };
-    cubePos.X = cube2World.M[3][0];
-    cubePos.Y = cube2World.M[3][1];
-    cubePos.Z = cube2World.M[3][2];
-
-    distX = cubePos.X - camPosition.X;
-    distY = cubePos.Y - camPosition.Y;
-    distZ = cubePos.Z - camPosition.Z;
-
-    float cube2Dist = distX * distX + distY * distY + distZ * distZ;
-
-    //If the first cubes distance is less than the second cubes
-    if (cube1Dist < cube2Dist)
-    {
-        //Switch the order in which the cubes are drawn
-        M4 tempMatrix = cube1World;
-        cube1World = cube2World;
-        cube2World = tempMatrix;
-    }
+    //Turn off backface culling
+    d3d11DevCon->RSSetState(noCull);
+    ///////////////**************new**************////////////////////
 
     //Set the WVP matrix and send it to the constant buffer in effect file
     WVP = cube1World * camView * camProjection;
@@ -666,13 +630,7 @@ void Draw()
     d3d11DevCon->PSSetShaderResources(0, 1, &CubesTextureView);
     d3d11DevCon->PSSetSamplers(0, 1, &CubesTexSamplerState);
 
-    //Counter clockwise culling first because we need the back side of
-    //the cube to be rendered first, so the front side can blend with it
-    d3d11DevCon->RSSetState(CCWcullMode);
     //Draw the first cube
-    d3d11DevCon->DrawIndexed(36, 0, 0);
-
-    d3d11DevCon->RSSetState(CWcullMode);
     d3d11DevCon->DrawIndexed(36, 0, 0);
 
     WVP = cube2World * camView * camProjection;
@@ -682,11 +640,7 @@ void Draw()
     d3d11DevCon->PSSetShaderResources(0, 1, &CubesTextureView);
     d3d11DevCon->PSSetSamplers(0, 1, &CubesTexSamplerState);
 
-    d3d11DevCon->RSSetState(CCWcullMode);
     //Draw the second cube
-    d3d11DevCon->DrawIndexed(36, 0, 0);
-
-    d3d11DevCon->RSSetState(CWcullMode);
     d3d11DevCon->DrawIndexed(36, 0, 0);
 
     //Present the backbuffer to the screen

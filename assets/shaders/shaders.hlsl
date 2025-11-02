@@ -29,7 +29,7 @@ float4 PSMain(PSInput input) : SV_TARGET
 {
     float4 diffuse = g_texture.Sample(g_sampler, input.texCoord);
     
-    //clip(diffuse.a - 0.1); // Discard pixels with low alpha
+    clip(diffuse.a - 0.1);
     
     //return input.normal;
     return diffuse;
