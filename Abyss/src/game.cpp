@@ -45,7 +45,7 @@ struct Texture
 
 struct FontGlyph
 {
-    Texture GlyphTexture;
+    ID3D11ShaderResourceView* TextureView;
 	V2 Size;
     V2 Bearing;
 	float Advance;
@@ -84,6 +84,8 @@ namespace
     ID3D11RasterizerState* Solid;
     ID3D11RasterizerState* WireFrame;
 
+    ID3D11Buffer* QuadIndexBuffer;
+    ID3D11Buffer* QuadVertBuffer;
     ID3D11VertexShader* FontVS;
     ID3D11PixelShader* FontPS;
     ID3D10Blob* FontVsBuffer;
@@ -131,7 +133,17 @@ static void ExitIfFailed(const HRESULT hr)
         WideCharToMultiByte(CP_ACP, 0, errMsg, -1, buffer, sizeof(buffer), nullptr, nullptr);
 
         std::print("HRESULT failed with error: {}", buffer);
-        std::exit(-1);
+        assert(false);
+    }
+}
+
+static void VerifyShader(const HRESULT hr, ID3D10Blob* errorMessages)
+{
+    if (FAILED(hr) && errorMessages) 
+    {
+	    auto errorMsg = static_cast<const char*>(errorMessages->GetBufferPointer());
+        std::print("Shader Compilation Error: {}\n", errorMsg);
+        assert(false);
     }
 }
 
@@ -194,6 +206,52 @@ static std::string ReadEntireFile(const std::string& filename)
     return buffer;
 }
 
+static ID3D11ShaderResourceView* CreateTextureView(const Texture& texture)
+{
+	ID3D11ShaderResourceView* textureView = nullptr;
+
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Width = texture.Width;
+    desc.Height = texture.Height;
+    desc.MipLevels = 1;
+    desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    desc.CPUAccessFlags = 0;
+    desc.MiscFlags = 0;
+
+    D3D11_SUBRESOURCE_DATA initData = {};
+    initData.pSysMem = texture.Pixels.data();
+    initData.SysMemPitch = texture.Width * 4; // 4 bytes per pixel (RGBA)
+
+    ID3D11Texture2D* d3d11texture = nullptr;
+    ExitIfFailed(D3d11Device->CreateTexture2D(&desc, &initData, &d3d11texture));
+
+    ExitIfFailed(D3d11Device->CreateShaderResourceView(d3d11texture, nullptr, &textureView));
+    d3d11texture->Release();
+
+    return textureView;
+}
+
+static Texture LoadTexture(const char* filename)
+{
+    int width, height, channels;
+    unsigned char* data = stbi_load(filename, &width, &height, &channels, STBI_rgb_alpha);
+    if (!data)
+    {
+        // If loading fails, return an error texture
+        return CreateErrorTexture();
+    }
+    Texture texture;
+    texture.Width = width;
+    texture.Height = height;
+	texture.Pixels = std::vector<unsigned char>(data, data + (width * height * 4));
+    return texture;
+}
+
+
 std::map<char, FontGlyph> LoadFontGlyphs(const std::string& path)
 {
     std::map<char, FontGlyph> result;
@@ -228,27 +286,29 @@ std::map<char, FontGlyph> LoadFontGlyphs(const std::string& path)
             continue;
         }
 
+        //Texture fontTexture = LoadTexture("assets/textures/cat.jpg");
+
         Texture fontTexture{};
         fontTexture.Width = width;
         fontTexture.Height = height;
-        fontTexture.Pixels = std::vector<unsigned char>(width * height * 4);
+        fontTexture.Pixels.assign(width * height * 4, 0);
 
         for (int y = 0; y < height; ++y)
         {
             for (int x = 0; x < width; ++x)
             {
-                const int index = y * width + x;
-                unsigned char value = bitmap[index];
-                // Set RGBA values
-                fontTexture.Pixels[index * 4 + 0] = 255; // R
-                fontTexture.Pixels[index * 4 + 1] = 255; // G
-                fontTexture.Pixels[index * 4 + 2] = 255; // B
-                fontTexture.Pixels[index * 4 + 3] = value; // A
+                unsigned char value = bitmap[y * width + x];
+                int dst = (y * width + x) * 4;
+                fontTexture.Pixels[dst + 0] = 255;
+                fontTexture.Pixels[dst + 1] = 255;
+                fontTexture.Pixels[dst + 2] = 255;
+                fontTexture.Pixels[dst + 3] = value;
             }
         }
 
+
 		FontGlyph glyph{};
-		glyph.GlyphTexture = fontTexture;
+		glyph.TextureView = CreateTextureView(fontTexture);
 		glyph.Size = {.X = static_cast<float>(width), .Y = static_cast<float>(height) };
 		glyph.Bearing = {.X = static_cast<float>(xOffset), .Y = static_cast<float>(-yOffset) };
 		glyph.Advance = scale * static_cast<float>(advance);
@@ -261,28 +321,14 @@ std::map<char, FontGlyph> LoadFontGlyphs(const std::string& path)
     return result;
 }
 
-static Texture LoadTexture(const char* filename)
-{
-    int width, height, channels;
-    unsigned char* data = stbi_load(filename, &width, &height, &channels, STBI_rgb_alpha);
-    if (!data)
-    {
-        // If loading fails, return an error texture
-        return CreateErrorTexture();
-    }
-    Texture texture;
-    texture.Width = width;
-    texture.Height = height;
-	texture.Pixels = std::vector<unsigned char>(data, data + (width * height * 4));
-    return texture;
-}
-
 static void InitMainRenderingPipeline()
 {
     LPCWSTR shaderPath = L"assets/shaders/shaders.hlsl";
 
+    ID3DBlob* errorMessages = nullptr;
+
     //Create the Shader Objects
-    ExitIfFailed(D3DCompileFromFile(
+    HRESULT hr = D3DCompileFromFile(
         shaderPath,
         nullptr,
         nullptr,
@@ -291,25 +337,23 @@ static void InitMainRenderingPipeline()
         0,
         0,
         &VsBuffer,
-        nullptr));
+        &errorMessages);
+    VerifyShader(hr, errorMessages);
 
-    ExitIfFailed(D3DCompileFromFile(
-        shaderPath,
-        nullptr,
-        nullptr,
-        "PSMain",
-        "ps_5_0",
-        0,
-        0,
-        &PsBuffer,
-        nullptr));
+    hr = D3DCompileFromFile(
+	    shaderPath,
+	    nullptr,
+	    nullptr,
+	    "PSMain",
+	    "ps_5_0",
+	    0,
+	    0,
+	    &PsBuffer,
+	    &errorMessages);
+	VerifyShader(hr, errorMessages);
 
     ExitIfFailed(D3d11Device->CreateVertexShader(VsBuffer->GetBufferPointer(), VsBuffer->GetBufferSize(), nullptr, &VS));
     ExitIfFailed(D3d11Device->CreatePixelShader(PsBuffer->GetBufferPointer(), PsBuffer->GetBufferSize(), nullptr, &PS));
-
-    //Set Initial Vertex and Pixel Shaders
-    D3d11DevContext->VSSetShader(VS, nullptr, 0);
-    D3d11DevContext->PSSetShader(PS, nullptr, 0);
 
     //Create the vertex buffer (cube)
     std::vector<Vertex> v =
@@ -395,8 +439,6 @@ static void InitMainRenderingPipeline()
     indexInitData.pSysMem = indices;
     ExitIfFailed(D3d11Device->CreateBuffer(&indexBufferDesc, &indexInitData, &CubesIndexBuffer));
 
-    D3d11DevContext->IASetIndexBuffer(CubesIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-
     D3D11_BUFFER_DESC vertexBufferDesc;
     ZeroMemory(&vertexBufferDesc, sizeof(vertexBufferDesc));
 
@@ -412,55 +454,49 @@ static void InitMainRenderingPipeline()
     vertexBufferData.pSysMem = v.data();
     ExitIfFailed(D3d11Device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &CubesVertBuffer));
 
-    //Set the vertex buffer
-    UINT stride = sizeof(Vertex);
-    UINT offset = 0;
-    D3d11DevContext->IASetVertexBuffers(0, 1, &CubesVertBuffer, &stride, &offset);
-
     //Create the Input Layout
     ExitIfFailed(D3d11Device->CreateInputLayout(layout, numElements, VsBuffer->GetBufferPointer(),
         VsBuffer->GetBufferSize(), &VertLayout));
-
-    D3d11DevContext->IASetInputLayout(VertLayout);
-    D3d11DevContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
 static void InitFontRenderingPipeline()
 {
     LPCWSTR shaderPath = L"assets/shaders/font_shaders.hlsl";
 
-    //Create the Shader Objects
-    ExitIfFailed(D3DCompileFromFile(
-        shaderPath,
-        nullptr,
-        nullptr,
-        "VSMain",
-        "vs_5_0",
-        0,
-        0,
-        &FontVsBuffer,
-        nullptr));
+    ID3DBlob* errorMessages;
 
-    ExitIfFailed(D3DCompileFromFile(
-        shaderPath,
-        nullptr,
-        nullptr,
-        "PSMain",
-        "ps_5_0",
-        0,
-        0,
-        &FontPsBuffer,
-        nullptr));
+    //Create the Shader Objects
+    HRESULT hr = D3DCompileFromFile(
+	    shaderPath,
+	    nullptr,
+	    nullptr,
+	    "VSMain",
+	    "vs_5_0",
+	    0,
+	    0,
+	    &FontVsBuffer,
+	    &errorMessages);
+
+    VerifyShader(hr, errorMessages);
+
+    hr = D3DCompileFromFile(
+	    shaderPath,
+	    nullptr,
+	    nullptr,
+	    "PSMain",
+	    "ps_5_0",
+	    0,
+	    0,
+	    &FontPsBuffer,
+	    &errorMessages);
+
+    VerifyShader(hr, errorMessages);
 
     ExitIfFailed(D3d11Device->CreateVertexShader(FontVsBuffer->GetBufferPointer(), FontVsBuffer->GetBufferSize(), nullptr, &FontVS));
     ExitIfFailed(D3d11Device->CreatePixelShader(FontPsBuffer->GetBufferPointer(), FontPsBuffer->GetBufferSize(), nullptr, &FontPS));
 
-    //Set Initial Vertex and Pixel Shaders
-    D3d11DevContext->VSSetShader(FontVS, nullptr, 0);
-    D3d11DevContext->PSSetShader(FontPS, nullptr, 0);
-
     //Create the vertex buffer (cube)
-    std::vector vertices =
+    std::vector<float> vertices =
     {
         -1.0f,  1.0f, 0.0f, 0.0f, // Top Left
          1.0f,  1.0f, 1.0f, 0.0f, // Top Right
@@ -476,7 +512,7 @@ static void InitFontRenderingPipeline()
 
     D3D11_INPUT_ELEMENT_DESC layout[] =
     {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 8, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
     UINT numElements = ARRAYSIZE(layout);
@@ -493,15 +529,13 @@ static void InitFontRenderingPipeline()
     D3D11_SUBRESOURCE_DATA indexInitData;
 
     indexInitData.pSysMem = indices;
-    ExitIfFailed(D3d11Device->CreateBuffer(&indexBufferDesc, &indexInitData, &CubesIndexBuffer));
-
-    D3d11DevContext->IASetIndexBuffer(CubesIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+    ExitIfFailed(D3d11Device->CreateBuffer(&indexBufferDesc, &indexInitData, &QuadIndexBuffer));
 
     D3D11_BUFFER_DESC vertexBufferDesc;
     ZeroMemory(&vertexBufferDesc, sizeof(vertexBufferDesc));
 
     vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-    vertexBufferDesc.ByteWidth = sizeof(Vertex) * static_cast<UINT>(vertices.size());
+    vertexBufferDesc.ByteWidth = static_cast<UINT>(sizeof(float) * (vertices.size()));
     vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     vertexBufferDesc.CPUAccessFlags = 0;
     vertexBufferDesc.MiscFlags = 0;
@@ -510,19 +544,11 @@ static void InitFontRenderingPipeline()
 
     ZeroMemory(&vertexBufferData, sizeof(vertexBufferData));
     vertexBufferData.pSysMem = vertices.data();
-    ExitIfFailed(D3d11Device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &CubesVertBuffer));
-
-    //Set the vertex buffer
-    UINT stride = sizeof(Vertex);
-    UINT offset = 0;
-    D3d11DevContext->IASetVertexBuffers(0, 1, &CubesVertBuffer, &stride, &offset);
+    ExitIfFailed(D3d11Device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &QuadVertBuffer));
 
     //Create the Input Layout
-    ExitIfFailed(D3d11Device->CreateInputLayout(layout, numElements, VsBuffer->GetBufferPointer(),
-        VsBuffer->GetBufferSize(), &FontVertLayout));
-
-    D3d11DevContext->IASetInputLayout(FontVertLayout);
-    D3d11DevContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    ExitIfFailed(D3d11Device->CreateInputLayout(layout, numElements, FontVsBuffer->GetBufferPointer(),
+        FontVsBuffer->GetBufferSize(), &FontVertLayout));
 }
 
 static void Init()
@@ -635,7 +661,7 @@ static void Init()
     D3d11DevContext->RSSetViewports(1, &viewport);
 
     InitMainRenderingPipeline();
-	//InitFontRenderingPipeline();
+	InitFontRenderingPipeline();
 
     //Create the buffer to send to the constant buffer in effect file
     D3D11_BUFFER_DESC constantBufferDesc;
@@ -650,38 +676,17 @@ static void Init()
     ExitIfFailed(D3d11Device->CreateBuffer(&constantBufferDesc, nullptr, &CbPerObjectBuffer));
 
 	// Texture Loading Test
-    Texture tex = LoadTexture("assets/textures/cage.png");
-
-    D3D11_TEXTURE2D_DESC desc = {};
-    desc.Width = tex.Width;
-    desc.Height = tex.Height;
-    desc.MipLevels = 1;
-    desc.ArraySize = 1;
-    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    desc.SampleDesc.Count = 1;
-    desc.Usage = D3D11_USAGE_DEFAULT;
-    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-    desc.CPUAccessFlags = 0;
-    desc.MiscFlags = 0;
-
-    D3D11_SUBRESOURCE_DATA initData = {};
-    initData.pSysMem = tex.Pixels.data();
-    initData.SysMemPitch = tex.Width * 4; // 4 bytes per pixel (RGBA)
-
-    ID3D11Texture2D* texture = nullptr;
-    ExitIfFailed(D3d11Device->CreateTexture2D(&desc, &initData, &texture));
-
-    ExitIfFailed(D3d11Device->CreateShaderResourceView(texture, nullptr, &CubesTextureView));
-    texture->Release();
+    Texture tex = LoadTexture("assets/textures/cat.jpg");
+	CubesTextureView = CreateTextureView(tex);
 
     //stbi_image_free(tex.Pixels.data());
 
     D3D11_SAMPLER_DESC samplerDesc;
     ZeroMemory(&samplerDesc, sizeof(samplerDesc));
     samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
     samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
     samplerDesc.MinLOD = 0;
     samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
@@ -810,11 +815,66 @@ static void Update()
     Cube2World = Rotation * Scale;
 }
 
+static void RenderFontGlyph(char c)
+{
+	FontGlyph* glyph;
+	auto it = LoadedFontGlyphs.find(c);
+    if (it != LoadedFontGlyphs.end())
+    {
+        glyph = &it->second;
+    }
+    else
+    {
+        return;
+	}
+
+    // Switch to font rendering pipeline
+    D3d11DevContext->VSSetShader(FontVS, nullptr, 0);
+    D3d11DevContext->PSSetShader(FontPS, nullptr, 0);
+
+    // 
+	CbPerObj = {};
+    const M4 model = MatrixIdentity();
+
+    Wvp = MatrixOrthographic(GameResolutionWidth, GameResolutionHeight, 0, 1);
+    CbPerObj.WVP = MatrixTranspose(Wvp) * model;
+    CbPerObj.Color = {.X = 1.0f, .Y = 1.0f, .Z = 1.0f, .W = 1.0f};
+    D3d11DevContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
+    D3d11DevContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
+    D3d11DevContext->PSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
+
+    //Set the vertex buffer
+    UINT stride = sizeof(float) * 4;
+    UINT offset = 0;
+    D3d11DevContext->IASetVertexBuffers(0, 1, &QuadVertBuffer, &stride, &offset);
+    D3d11DevContext->IASetIndexBuffer(QuadIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+    D3d11DevContext->IASetInputLayout(FontVertLayout);
+    D3d11DevContext->PSSetShaderResources(0, 1, &glyph->TextureView);
+    D3d11DevContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    D3d11DevContext->RSSetState(NoCull);
+
+    D3d11DevContext->DrawIndexed(6, 0, 0);
+}
+
 static void Draw()
 {
     //Clear our back buffer (sky blue)
     constexpr float bgColor[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
     D3d11DevContext->ClearRenderTargetView(RenderTargetView, bgColor);
+
+    //Set Initial Vertex and Pixel Shaders
+    D3d11DevContext->VSSetShader(VS, nullptr, 0);
+    D3d11DevContext->PSSetShader(PS, nullptr, 0);
+
+    //Set the vertex buffer
+    UINT stride = sizeof(Vertex);
+    UINT offset = 0;
+
+    D3d11DevContext->IASetIndexBuffer(CubesIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+    D3d11DevContext->IASetVertexBuffers(0, 1, &CubesVertBuffer, &stride, &offset);
+    D3d11DevContext->IASetInputLayout(VertLayout);
+    D3d11DevContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     //Refresh the Depth/Stencil view
     D3d11DevContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
@@ -825,6 +885,8 @@ static void Draw()
 
     //Turn off backface culling
     D3d11DevContext->RSSetState(NoCull);
+
+    CbPerObj = {};
 
     //Set the WVP matrix and send it to the constant buffer in effect file
     Wvp = Cube1World * CamView * CamProjection;
@@ -846,6 +908,8 @@ static void Draw()
 
     //Draw the second cube
     D3d11DevContext->DrawIndexed(36, 0, 0);
+
+    RenderFontGlyph('n');
 
     //Present the back buffer to the screen
     SwapChain->Present(0, 0);
