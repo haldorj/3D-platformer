@@ -65,6 +65,10 @@ constexpr int WindowHeight = 720;
 constexpr int GameResolutionWidth = 640;
 constexpr int GameResolutionHeight = 360;
 
+static float DeltaTime{};
+
+static bool VSync = true;
+
 namespace 
 {
     IDXGISwapChain* SwapChain;
@@ -102,8 +106,6 @@ namespace
     ID3D11RasterizerState* NoCull;
 
     CbPerObject CbPerObj;
-
-	bool VSync = true;
 
     M4 Cube1World;
     M4 Cube2World;
@@ -794,7 +796,7 @@ static void Cleanup()
 static void Update()
 {
     //Keep the cubes rotating
-    Rot += .005f;
+    Rot += .5f * DeltaTime;
     if (Rot > 6.28f)
         Rot = 0.0f;
 
@@ -960,13 +962,15 @@ static void Draw()
     //Draw the second cube
     D3d11DevContext->DrawIndexed(36, 0, 0);
 
-	RenderText("Hello World!", 0, 0, 1.0f, { 1.0f, 0.0f, 0.0f });
+	float fps = 1.0f / DeltaTime;
+    const std::string fpsStr = std::format("FPS: {:.0f}", fps);
+	RenderText(fpsStr.c_str(), 0, 0, 1.0f, { 1.0f, 0.0f, 0.0f });
 
     //Present the back buffer to the screen
 #ifdef _DEBUG
-    ExitIfFailed(SwapChain->Present(true, 0));
+    ExitIfFailed(SwapChain->Present(VSync, 0));
 #elif
-    SwapChain->Present(true, 0);
+    SwapChain->Present(VSync, 0);
 #endif
 }
 
@@ -975,15 +979,22 @@ static void Run()
     SDL_Event e;
     bool bQuit = false;
 
+    auto previousTime = std::chrono::steady_clock::now();
+
     while (!bQuit)
     {
+        auto currentTime = std::chrono::steady_clock::now();
+        std::chrono::duration<double> elapsed = currentTime - previousTime;
+        previousTime = currentTime;
+
         while (SDL_PollEvent(&e) != 0)
         {
             if (e.type == SDL_EVENT_QUIT)
-            {
                 bQuit = true;
-            }
         }
+
+        DeltaTime = static_cast<float>(elapsed.count()); // in seconds
+
         Update();
         Draw();
     }

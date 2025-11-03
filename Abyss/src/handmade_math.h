@@ -306,8 +306,8 @@ inline M4 MatrixOrthographic(const float width, const float height,
 	return result;
 }
 
-M4 MatrixOrthographicBR(const float width, const float height,
-	const float nearPlane, const float farPlane)
+inline M4 MatrixOrthographicBR(const float width, const float height,
+                               const float nearPlane, const float farPlane)
 {
 	M4 m = {};
 
