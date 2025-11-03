@@ -26,7 +26,7 @@ PSInput VSMain(VSInput input)
 {
     PSInput result;
 
-    result.position = mul(Projection, mul(View, mul(World, float4(input.position.xy, 0.0f, 1.0f))));
+    result.position = mul(Projection, mul(World, float4(input.position.xy, 0.0f, 1.0f)));
     result.texCoord = input.texCoord;
 
     return result;

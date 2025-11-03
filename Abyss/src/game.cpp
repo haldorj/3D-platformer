@@ -103,6 +103,8 @@ namespace
 
     CbPerObject CbPerObj;
 
+	bool VSync = true;
+
     M4 Cube1World;
     M4 Cube2World;
     M4 CamView;
@@ -792,7 +794,7 @@ static void Cleanup()
 static void Update()
 {
     //Keep the cubes rotating
-    Rot += .00005f;
+    Rot += .005f;
     if (Rot > 6.28f)
         Rot = 0.0f;
 
@@ -863,7 +865,7 @@ static void RenderText(const std::string_view text,
 
     D3d11DevContext->RSSetState(NoCull);
 
-	const M4 projection = MatrixOrthographic(
+	const M4 projection = MatrixOrthographicBR(
         static_cast<float>(GameResolutionWidth), static_cast<float>(GameResolutionHeight), 0.0f, 1.0f);
 
     for (char c : text)
@@ -879,9 +881,9 @@ static void RenderText(const std::string_view text,
         const float xPos = x + glyph.Bearing.X * scale;
         const float yPos = y - (glyph.Size.Y - glyph.Bearing.Y) * scale;
 
-        M4 scaling = MatrixScaling(glyph.Size.X * scale, glyph.Size.Y * scale, 1.0f); // scale unit quad to pixel size
-        M4 translation = MatrixTranslation(xPos, yPos, 0.0f);
-        M4 model = scaling * translation;
+        const M4 scaling = MatrixScaling(glyph.Size.X * scale, glyph.Size.Y * scale, 1.0f); // scale unit quad to pixel size
+        const M4 translation = MatrixTranslation(xPos, yPos, 0.0f);
+        const M4 model = scaling * translation;
 
         // Set up constant buffer for each glyph
         CbPerObj = {};
@@ -958,10 +960,14 @@ static void Draw()
     //Draw the second cube
     D3d11DevContext->DrawIndexed(36, 0, 0);
 
-	RenderText("Hello World!", 0.0f, 0.0f, 1.0f, { 1.0f, 0.0f, 0.0f });
+	RenderText("Hello World!", 0, 0, 1.0f, { 1.0f, 0.0f, 0.0f });
 
     //Present the back buffer to the screen
-    SwapChain->Present(0, 0);
+#ifdef _DEBUG
+    ExitIfFailed(SwapChain->Present(true, 0));
+#elif
+    SwapChain->Present(true, 0);
+#endif
 }
 
 static void Run()
