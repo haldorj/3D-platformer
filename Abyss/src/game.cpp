@@ -67,6 +67,10 @@ constexpr int GameResolutionHeight = 360;
 
 static float DeltaTime{};
 
+int FPS = 0;
+int maxFrameCounter = 60;
+int currentFrameCounter{};
+
 static bool VSync = true;
 
 namespace 
@@ -962,9 +966,17 @@ static void Draw()
     //Draw the second cube
     D3d11DevContext->DrawIndexed(36, 0, 0);
 
-	float fps = 1.0f / DeltaTime;
-    const std::string fpsStr = std::format("FPS: {:.0f}", fps);
-	RenderText(fpsStr.c_str(), 0, 0, 1.0f, { 1.0f, 0.0f, 0.0f });
+    if (currentFrameCounter >= maxFrameCounter)
+    {
+        currentFrameCounter = 0;
+        FPS = 1.0f / DeltaTime;
+    }
+	else
+    {
+        currentFrameCounter++;
+    }
+    const std::string fpsStr = std::format("FPS: {}", FPS);
+	RenderText(fpsStr, 0, 0, 1.0f, { 1.0f, 1.0f, 1.0f });
 
     //Present the back buffer to the screen
 #ifdef _DEBUG
@@ -986,14 +998,13 @@ static void Run()
         auto currentTime = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed = currentTime - previousTime;
         previousTime = currentTime;
+        DeltaTime = static_cast<float>(elapsed.count());
 
         while (SDL_PollEvent(&e) != 0)
         {
             if (e.type == SDL_EVENT_QUIT)
                 bQuit = true;
         }
-
-        DeltaTime = static_cast<float>(elapsed.count()); // in seconds
 
         Update();
         Draw();
