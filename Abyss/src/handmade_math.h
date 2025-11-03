@@ -49,7 +49,7 @@ inline V2 operator-=(V2& a, const V2& b)
 	return a;
 };
 
-inline V2 operator*(const V2& a, float b)
+inline V2 operator*(const V2& a, const float b)
 {	
 	return {a.X * b,
 			a.Y * b};
@@ -108,7 +108,7 @@ inline V3 operator-=(V3& a, const V3& b)
 	return a;
 };
 
-inline V3 operator*(const V3& a, float b) 
+inline V3 operator*(const V3& a, const float b) 
 {	
 	return {a.X * b,
 			a.Y * b,
@@ -139,7 +139,7 @@ inline float Dot(const V3& a, const V3& b)
 
 inline V3 Normalize(const V3& a)
 {
-	float length = sqrtf(a.X * a.X + a.Y * a.Y + a.Z * a.Z);
+	const float length = sqrtf(a.X * a.X + a.Y * a.Y + a.Z * a.Z);
 
 	if (length == 0.0f)
 	{
@@ -151,7 +151,7 @@ inline V3 Normalize(const V3& a)
 
 inline V2 Normalize2D(const V3& a)
 {
-	float length = sqrtf(a.X * a.X + a.Y * a.Y);
+	const float length = sqrtf(a.X * a.X + a.Y * a.Y);
 
 	if (length == 0.0f)
 	{
@@ -183,12 +183,12 @@ struct Quat
 
 // Creates a quaternion that represents a rotation (in radians) around an axis.
 // NOTE: Axis must be normalized.
-inline Quat QuatFromAxisAngle(V3 axis, float radians)
+inline Quat QuatFromAxisAngle(const V3 axis, const float radians)
 {
 	Quat result = {};
-	float halfAngle = radians * 0.5f;
+	const float halfAngle = radians * 0.5f;
 	result.W = cosf(halfAngle);
-	float s = sinf(halfAngle);
+	const float s = sinf(halfAngle);
 	result.X = axis.X * s;
 	result.Y = axis.Y * s;
 	result.Z = axis.Z * s;
@@ -268,9 +268,9 @@ inline M4 MatrixIdentity()
 
 inline M4 MatrixLookAt(const V3& eye, const V3& at, const V3& up)
 {
-	V3 zaxis = Normalize(at - eye);			// The cameras "forward" vector.
-	V3 xaxis = Normalize(Cross(up, zaxis)); // The cameras "right" vector.
-	V3 yaxis = Cross(zaxis, xaxis);			// The cameras "up" vector.
+	const V3 zaxis = Normalize(at - eye);					// The cameras "forward" vector.
+	const V3 xaxis = Normalize(Cross(up, zaxis));		// The cameras "right" vector.
+	const V3 yaxis = Cross(zaxis, xaxis);				// The cameras "up" vector.
 	M4 viewMatrix = {};
 	viewMatrix.M[0][0] = xaxis.X;
 	viewMatrix.M[1][0] = xaxis.Y;
@@ -291,25 +291,27 @@ inline M4 MatrixLookAt(const V3& eye, const V3& at, const V3& up)
 	return viewMatrix;
 };
 
-inline M4 MatrixOrthographic(float width, float height, float zn, float zf)
+inline M4 MatrixOrthographic(const float width, const float height, 
+	const float nearPlane, const float farPlane)
 {
 	// https://learn.microsoft.com/en-us/windows/win32/direct3d10/d3d10-d3dxmatrixorthorh
 
 	M4 result = {};
 	result.M[0][0] = 2.0f / width;
 	result.M[1][1] = 2.0f / height;
-	result.M[2][2] = 1.0f / (zn - zf);
-	result.M[3][2] = zn / (zn - zf);
+	result.M[2][2] = 1.0f / (nearPlane - farPlane);
+	result.M[3][2] = nearPlane / (nearPlane - farPlane);
 	result.M[3][3] = 1.0f;
 
 	return result;
 }
 
-inline M4 MatrixPerspective(float fovY, float aspect, float nearPlane, float farPlane)
+inline M4 MatrixPerspective(const float fovY, const float aspect, 
+	const float nearPlane, const float farPlane)
 {
 	M4 result = {};
 
-	float f = 1.0f / tanf(fovY / 2.0f);
+	const float f = 1.0f / tanf(fovY / 2.0f);
 	result.M[0][0] = f / aspect;
 	result.M[1][1] = f;
 	result.M[2][2] = farPlane / (farPlane - nearPlane);	
@@ -320,12 +322,12 @@ inline M4 MatrixPerspective(float fovY, float aspect, float nearPlane, float far
 	return result;
 };
 
-inline M4 MatrixRotationX(float angle)
+inline M4 MatrixRotationX(const float angle)
 {
 	M4 result = {};
 
-	float c = cosf(angle);
-	float s = sinf(angle);
+	const float c = cosf(angle);
+	const float s = sinf(angle);
 
 	// [1][0][0][0]
 	// [0][c][-s][0]
@@ -340,12 +342,12 @@ inline M4 MatrixRotationX(float angle)
 	return result;
 }
 
-inline M4 MatrixRotationY(float angle)
+inline M4 MatrixRotationY(const float angle)
 {
 	M4 result = {};
-	
-	float c = cosf(angle);
-	float s = sinf(angle);
+
+	const float c = cosf(angle);
+	const float s = sinf(angle);
 
 	// [c][0][s][0]
 	// [0][1][0][0]
@@ -360,12 +362,12 @@ inline M4 MatrixRotationY(float angle)
 	return result;
 }
 
-inline M4 MatrixRotationZ(float angle)
+inline M4 MatrixRotationZ(const float angle)
 {
 	M4 result = {};
-	
-	float c = cosf(angle);
-	float s = sinf(angle);
+
+	const float c = cosf(angle);
+	const float s = sinf(angle);
 
 	// [c][-s][0][0]
 	// [s][c][0][0]
@@ -381,7 +383,7 @@ inline M4 MatrixRotationZ(float angle)
 }
 
 
-inline M4 MatrixTranslation(float x, float y, float z)
+inline M4 MatrixTranslation(const float x, const float y, const float z)
 {
 	M4 result = MatrixIdentity();
 
@@ -398,7 +400,7 @@ inline M4 MatrixTranslation(float x, float y, float z)
 	return result;
 };
 
-inline M4 MatrixScaling(float x, float y, float z)
+inline M4 MatrixScaling(const float x, const float y, const float z)
 {
 	M4 result = {};
 
@@ -418,15 +420,15 @@ inline M4 MatrixScaling(float x, float y, float z)
 inline M4 MatrixFromQuaternion(const Quat& q)
 {
 	M4 result = {};
-	float xx = q.X * q.X;
-	float yy = q.Y * q.Y;
-	float zz = q.Z * q.Z;
-	float xy = q.X * q.Y;
-	float xz = q.X * q.Z;
-	float yz = q.Y * q.Z;
-	float wx = q.W * q.X;
-	float wy = q.W * q.Y;
-	float wz = q.W * q.Z;
+	const float xx = q.X * q.X;
+	const float yy = q.Y * q.Y;
+	const float zz = q.Z * q.Z;
+	const float xy = q.X * q.Y;
+	const float xz = q.X * q.Z;
+	const float yz = q.Y * q.Z;
+	const float wx = q.W * q.X;
+	const float wy = q.W * q.Y;
+	const float wz = q.W * q.Z;
 
 	result.M[0][0] = 1.0f - 2.0f * (yy + zz);
 	result.M[0][1] = 2.0f * (xy - wz);

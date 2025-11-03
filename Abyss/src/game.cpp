@@ -863,7 +863,7 @@ static void RenderText(const std::string_view text,
 
     D3d11DevContext->RSSetState(NoCull);
 
-    const M4 projection = MatrixOrthographic(
+	const M4 projection = MatrixOrthographic(
         static_cast<float>(GameResolutionWidth), static_cast<float>(GameResolutionHeight), 0.0f, 1.0f);
 
     for (char c : text)
@@ -885,7 +885,7 @@ static void RenderText(const std::string_view text,
 
         // Set up constant buffer for each glyph
         CbPerObj = {};
-        CbPerObj.Projection = MatrixOrthographic(GameResolutionWidth, GameResolutionHeight, 0, 1);
+        CbPerObj.Projection = projection;
         CbPerObj.View = MatrixIdentity();
         CbPerObj.World = model;
 
