@@ -1,7 +1,9 @@
 
 cbuffer cbPerObject
 {
-    float4x4 WVP;
+    float4x4 Projection;
+    float4x4 View;
+    float4x4 World;
     float4 Color;
 };
 
@@ -24,10 +26,7 @@ PSInput VSMain(VSInput input)
 {
     PSInput result;
 
-    // Transform the vertex position into clip space
-    result.position = float4(input.position.xy, 0.0f, 1.0f);
-
-    // Pass texture coordinate through
+    result.position = mul(Projection, mul(View, mul(World, float4(input.position.xy, 0.0f, 1.0f))));
     result.texCoord = input.texCoord;
 
     return result;
@@ -37,7 +36,6 @@ float4 PSMain(PSInput input) : SV_TARGET
 {
     float4 diffuse = g_texture.Sample(g_sampler, input.texCoord);
 
-    // Discard transparent fragments
     clip(diffuse.a - 0.1);
 
     return diffuse * Color;

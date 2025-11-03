@@ -53,7 +53,9 @@ struct FontGlyph
 
 struct CbPerObject
 {
-    M4 WVP;
+    M4 Projection;
+	M4 View;
+	M4 World;
     V4 Color;
 };
 
@@ -101,7 +103,6 @@ namespace
 
     CbPerObject CbPerObj;
 
-    M4 Wvp;
     M4 Cube1World;
     M4 Cube2World;
     M4 CamView;
@@ -270,7 +271,7 @@ std::map<char, FontGlyph> LoadFontGlyphs(const std::string& path)
 		return {};
 	}
 
-    constexpr float pixelHeight = 128.0f;
+    constexpr float pixelHeight = 32;
     const float scale = stbtt_ScaleForPixelHeight(&font, pixelHeight);
     int width, height, xOffset, yOffset, advance, lsb;
 
@@ -498,10 +499,10 @@ static void InitFontRenderingPipeline()
     //Create the vertex buffer (cube)
     std::vector<float> vertices =
     {
-        -1.0f,  1.0f, 0.0f, 0.0f, // Top Left
-         1.0f,  1.0f, 1.0f, 0.0f, // Top Right
-         1.0f, -1.0f, 1.0f, 1.0f, // Bottom Right
-		-1.0f, -1.0f, 0.0f, 1.0f  // Bottom Left
+	    0.0f, 1.0f, 0.0f, 0.0f,
+	    1.0f, 1.0f, 1.0f, 0.0f,
+	    1.0f, 0.0f, 1.0f, 1.0f,
+	    0.0f, 0.0f, 0.0f, 1.0f
     };
 
     uint32_t indices[] =
@@ -815,6 +816,7 @@ static void Update()
     Cube2World = Rotation * Scale;
 }
 
+
 static void RenderFontGlyph(char c)
 {
 	FontGlyph* glyph;
@@ -836,25 +838,69 @@ static void RenderFontGlyph(char c)
 	CbPerObj = {};
     const M4 model = MatrixIdentity();
 
-    Wvp = MatrixOrthographic(GameResolutionWidth, GameResolutionHeight, 0, 1);
-    CbPerObj.WVP = MatrixTranspose(Wvp) * model;
+
     CbPerObj.Color = {.X = 1.0f, .Y = 1.0f, .Z = 1.0f, .W = 1.0f};
     D3d11DevContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
     D3d11DevContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
     D3d11DevContext->PSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
+}
+
+
+static void RenderText(const std::string_view text, 
+	float x, float y, const float scale, const V3 color)
+{
+    // Switch to font rendering pipeline
+    D3d11DevContext->VSSetShader(FontVS, nullptr, 0);
+    D3d11DevContext->PSSetShader(FontPS, nullptr, 0);
 
     //Set the vertex buffer
-    UINT stride = sizeof(float) * 4;
-    UINT offset = 0;
+    constexpr UINT stride = sizeof(float) * 4;
+    constexpr UINT offset = 0;
     D3d11DevContext->IASetVertexBuffers(0, 1, &QuadVertBuffer, &stride, &offset);
     D3d11DevContext->IASetIndexBuffer(QuadIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
     D3d11DevContext->IASetInputLayout(FontVertLayout);
-    D3d11DevContext->PSSetShaderResources(0, 1, &glyph->TextureView);
     D3d11DevContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     D3d11DevContext->RSSetState(NoCull);
 
-    D3d11DevContext->DrawIndexed(6, 0, 0);
+    const M4 projection = MatrixOrthographic(
+        static_cast<float>(GameResolutionWidth), static_cast<float>(GameResolutionHeight), 0.0f, 1.0f);
+
+    for (char c : text)
+    {
+        auto it = LoadedFontGlyphs.find(c);
+        if (it == LoadedFontGlyphs.end())
+        {
+            x += 8.f * scale;
+	        continue;
+        };
+        FontGlyph& glyph = it->second;
+
+        const float xPos = x + glyph.Bearing.X * scale;
+        const float yPos = y - (glyph.Size.Y - glyph.Bearing.Y) * scale;
+
+        M4 scaling = MatrixScaling(glyph.Size.X * scale, glyph.Size.Y * scale, 1.0f); // scale unit quad to pixel size
+        M4 translation = MatrixTranslation(xPos, yPos, 0.0f);
+        M4 model = scaling * translation;
+
+        // Set up constant buffer for each glyph
+        CbPerObj = {};
+        CbPerObj.Projection = MatrixOrthographic(GameResolutionWidth, GameResolutionHeight, 0, 1);
+        CbPerObj.View = MatrixIdentity();
+        CbPerObj.World = model;
+
+        CbPerObj.Color = { color.X, color.Y, color.Z, 1.0f };
+
+        D3d11DevContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
+        D3d11DevContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
+        D3d11DevContext->PSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
+
+        D3d11DevContext->PSSetShaderResources(0, 1, &glyph.TextureView);
+
+        D3d11DevContext->DrawIndexed(6, 0, 0);
+
+        x += glyph.Advance * scale;
+    }
 }
 
 static void Draw()
@@ -888,9 +934,10 @@ static void Draw()
 
     CbPerObj = {};
 
-    //Set the WVP matrix and send it to the constant buffer in effect file
-    Wvp = Cube1World * CamView * CamProjection;
-    CbPerObj.WVP = MatrixTranspose(Wvp);
+    CbPerObj.Projection = CamProjection;
+    CbPerObj.View = CamView;
+    CbPerObj.World = Cube1World;
+
     D3d11DevContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
     D3d11DevContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
     D3d11DevContext->PSSetShaderResources(0, 1, &CubesTextureView);
@@ -899,8 +946,10 @@ static void Draw()
     //Draw the first cube
     D3d11DevContext->DrawIndexed(36, 0, 0);
 
-    Wvp = Cube2World * CamView * CamProjection;
-    CbPerObj.WVP = MatrixTranspose(Wvp);
+    CbPerObj.Projection = CamProjection;
+    CbPerObj.View = CamView;
+    CbPerObj.World = Cube2World;
+
     D3d11DevContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
     D3d11DevContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
     D3d11DevContext->PSSetShaderResources(0, 1, &CubesTextureView);
@@ -909,7 +958,7 @@ static void Draw()
     //Draw the second cube
     D3d11DevContext->DrawIndexed(36, 0, 0);
 
-    RenderFontGlyph('n');
+	RenderText("Hello World!", 0.0f, 0.0f, 1.0f, { 1.0f, 0.0f, 0.0f });
 
     //Present the back buffer to the screen
     SwapChain->Present(0, 0);

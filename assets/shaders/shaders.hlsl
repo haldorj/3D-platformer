@@ -1,7 +1,9 @@
 
 cbuffer cbPerObject
 {
-    float4x4 WVP;
+    float4x4 Projection;
+    float4x4 View;
+    float4x4 World;
     float4 Color;
 };
 
@@ -18,8 +20,8 @@ SamplerState g_sampler : register(s0);
 PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 texCoord : TEXCOORD)
 {
     PSInput result;
-    
-    result.position = mul(position, WVP);
+
+    result.position = mul(Projection, mul(View, mul(World, position)));
     result.normal = normal;
     result.texCoord = texCoord;
 
