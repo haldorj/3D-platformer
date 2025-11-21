@@ -1,3 +1,15 @@
+struct Light
+{
+    float4 color;
+    float4 dir;
+    float4 ambient;
+    float4 diffuse;
+};
+
+cbuffer cbPerFrame
+{
+    Light light;
+};
 
 cbuffer cbPerObject
 {
@@ -30,10 +42,12 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 texCoo
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    float4 diffuse = g_texture.Sample(g_sampler, input.texCoord);
-    
-    clip(diffuse.a - 0.1);
+    float4 objectColor = g_texture.Sample(g_sampler, input.texCoord);
+    clip(objectColor.a - 0.1);
+
+    float4 ambient = light.ambient * light.color;
+    float4 diffuse = max(dot(input.normal.xyz, light.dir.xyz), 0.0f) * light.color;
     
     //return input.normal;
-    return diffuse;
+    return (ambient + diffuse) * objectColor;
 }

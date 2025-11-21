@@ -3,60 +3,30 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STB_TRUETYPE_IMPLEMENTATION
-
 #include "stb_truetype.h"
 
 #include "handmade_math.h"
 
-struct DeletionQueue
-{
-    std::deque<std::function<void()>> DeletionFunctions;
-
-    void PushFunction(std::function<void()>&& function)
-    {
-        DeletionFunctions.push_back(std::move(function));
-    }
-
-    void Flush()
-    {
-        // reverse iterate the deletion queue to execute all the functions
-        for (auto& deletionFunction : std::ranges::reverse_view(DeletionFunctions))
-        {
-            deletionFunction(); //call functors
-        }
-
-        DeletionFunctions.clear();
-    }
-};
-
 struct Vertex
 {
-    V3 Position;
-    V3 Color;
-    V2 TexCoord;
+    V3 Position{};
+    V3 Normal{};
+    V2 TexCoord{};
 };
 
 struct Texture
 {
-    int Width;
-    int Height;
-    std::vector<unsigned char> Pixels;
+    int Width{};
+    int Height{};
+    std::vector<unsigned char> Pixels{};
 };
 
-struct FontGlyph
+struct DirectionalLight
 {
-    ID3D11ShaderResourceView* TextureView;
-	V2 Size;
-    V2 Bearing;
-	float Advance;
-};
-
-struct CbPerObject
-{
-    M4 Projection;
-	M4 View;
-	M4 World;
-    V4 Color;
+    V4 Color{};
+    V4 Direction{};
+    V4 Ambient{};
+    V4 Diffuse{};
 };
 
 constexpr int WindowWidth = 1280;
@@ -67,70 +37,91 @@ constexpr int GameResolutionHeight = 360;
 
 static float DeltaTime{};
 
-int FPS = 0;
-int maxFrameCounter = 60;
-int currentFrameCounter{};
+static int FPS = 0;
+static int maxFrameCounter = 60;
+static int currentFrameCounter{};
 
 static bool VSync = true;
 
-namespace 
+static DirectionalLight GlobalDirectionalLight{};
+
+struct CbPerObject
 {
-    IDXGISwapChain* SwapChain;
-    ID3D11Device* D3d11Device;
-    ID3D11DeviceContext* D3d11DevContext;
-    ID3D11RenderTargetView* RenderTargetView;
-    ID3D11DepthStencilView* DepthStencilView;
-    ID3D11Texture2D* DepthStencilBuffer;
+    M4 Projection{};
+    M4 View{};
+    M4 World{};
+    V4 Color{};
+};
 
-    ID3D11Buffer* CubesIndexBuffer;
-    ID3D11Buffer* CubesVertBuffer;
-    ID3D11VertexShader* VS;
-    ID3D11PixelShader* PS;
-    ID3D10Blob* VsBuffer;
-    ID3D10Blob* PsBuffer;
-    ID3D11InputLayout* VertLayout;
+struct CbPerFrame
+{
+    DirectionalLight Light{};
+};
 
-    ID3D11Buffer* CbPerObjectBuffer;
-    ID3D11RasterizerState* Solid;
-    ID3D11RasterizerState* WireFrame;
+struct FontGlyph
+{
+    ID3D11ShaderResourceView* TextureView{};
+    V2 Size{};
+    V2 Bearing{};
+    float Advance{};
+};
 
-    ID3D11Buffer* QuadIndexBuffer;
-    ID3D11Buffer* QuadVertBuffer;
-    ID3D11VertexShader* FontVS;
-    ID3D11PixelShader* FontPS;
-    ID3D10Blob* FontVsBuffer;
-    ID3D10Blob* FontPsBuffer;
-    ID3D11InputLayout* FontVertLayout;
+IDXGISwapChain* SwapChain;
+ID3D11Device* D3d11Device;
+ID3D11DeviceContext* D3d11DevContext;
+ID3D11RenderTargetView* RenderTargetView;
+ID3D11DepthStencilView* DepthStencilView;
+ID3D11Texture2D* DepthStencilBuffer;
 
-    ID3D11ShaderResourceView* CubesTextureView;
-    ID3D11SamplerState* CubesTexSamplerState;
-    ID3D11BlendState* Transparency;
-    ID3D11RasterizerState* CounterClockwiseCullMode;
-    ID3D11RasterizerState* ClockwiseCullMode;
-    ID3D11RasterizerState* NoCull;
+ID3D11Buffer* CubesIndexBuffer;
+ID3D11Buffer* CubesVertBuffer;
+ID3D11VertexShader* VS;
+ID3D11PixelShader* PS;
+ID3D10Blob* VsBuffer;
+ID3D10Blob* PsBuffer;
+ID3D11InputLayout* VertLayout;
 
-    CbPerObject CbPerObj;
+ID3D11Buffer* CbPerObjectBuffer;
+ID3D11RasterizerState* Solid;
+ID3D11RasterizerState* WireFrame;
 
-    M4 Cube1World;
-    M4 Cube2World;
-    M4 CamView;
-    M4 CamProjection;
+ID3D11Buffer* cbPerFrameBuffer;
 
-    V3 CamPosition;
-    V3 CamTarget;
-    V3 CamUp;
+ID3D11Buffer* QuadIndexBuffer;
+ID3D11Buffer* QuadVertBuffer;
+ID3D11VertexShader* FontVS;
+ID3D11PixelShader* FontPS;
+ID3D10Blob* FontVsBuffer;
+ID3D10Blob* FontPsBuffer;
+ID3D11InputLayout* FontVertLayout;
 
-    DeletionQueue D3D11DeletionQueue;
+ID3D11ShaderResourceView* CubesTextureView;
+ID3D11SamplerState* CubesTexSamplerState;
+ID3D11BlendState* Transparency;
+ID3D11RasterizerState* CounterClockwiseCullMode;
+ID3D11RasterizerState* ClockwiseCullMode;
+ID3D11RasterizerState* NoCull;
 
-    SDL_Window* Window{};
+CbPerObject CbPerObj;
+CbPerFrame ConstBufferPerFrame;
 
-    M4 Rotation;
-    M4 Scale;
-    M4 Translation;
-    float Rot = 0.01f;
+M4 Cube1World;
+M4 Cube2World;
+M4 CamView;
+M4 CamProjection;
 
-	std::map<char, FontGlyph> LoadedFontGlyphs{};
-}
+V3 CamPosition;
+V3 CamTarget;
+V3 CamUp;
+
+SDL_Window* Window{};
+
+M4 Rotation;
+M4 Scale;
+M4 Translation;
+float Rot = 0.01f;
+
+std::map<char, FontGlyph> LoadedFontGlyphs{};
 
 static void ExitIfFailed(const HRESULT hr)
 {
@@ -158,17 +149,25 @@ static void VerifyShader(const HRESULT hr, ID3D10Blob* errorMessages)
 
 static Texture CreateErrorTexture()
 {
+    Texture texture{};
+
     constexpr size_t width = 256;
     constexpr size_t height = 256;
     auto pixels = static_cast<unsigned char*>(malloc(width * height * 4));
-    // Checkerboard pattern
 
+    if (!pixels)
+    {
+        return texture;
+    }
+
+    // Checkerboard pattern
     for (auto y = 0; y < height; ++y)
     {
         for (auto x = 0; x < width; ++x)
         {
             const int index = (y * width + x) * 4;
             constexpr int checkSize = 16;
+
             if (x / checkSize % 2 == y / checkSize % 2)
             {
                 pixels[index + 0] = 255; // R
@@ -186,10 +185,11 @@ static Texture CreateErrorTexture()
         }
     }
 
-    Texture texture;
     texture.Width = width;
     texture.Height = height;
 	texture.Pixels = std::vector<unsigned char>(pixels, pixels + (width * height * 4));
+
+    free(pixels);
 
     return texture;
 }
@@ -244,15 +244,16 @@ static ID3D11ShaderResourceView* CreateTextureView(const Texture& texture)
     return textureView;
 }
 
-static Texture LoadTexture(const char* filename)
+static Texture LoadTexture(const std::string& filename)
 {
     int width, height, channels;
-    unsigned char* data = stbi_load(filename, &width, &height, &channels, STBI_rgb_alpha);
+    unsigned char* data = stbi_load(filename.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+
     if (!data)
     {
-        // If loading fails, return an error texture
         return CreateErrorTexture();
     }
+
     Texture texture;
     texture.Width = width;
     texture.Height = height;
@@ -261,7 +262,7 @@ static Texture LoadTexture(const char* filename)
 }
 
 
-std::map<char, FontGlyph> LoadFontGlyphs(const std::string& path)
+static std::map<char, FontGlyph> LoadFontGlyphs(const std::string& path)
 {
     std::map<char, FontGlyph> result;
 
@@ -283,7 +284,7 @@ std::map<char, FontGlyph> LoadFontGlyphs(const std::string& path)
     const float scale = stbtt_ScaleForPixelHeight(&font, pixelHeight);
     int width, height, xOffset, yOffset, advance, lsb;
 
-    for (int codepoint = 0; codepoint < 128; ++codepoint)
+    for (int codepoint = 32; codepoint < 128; ++codepoint)
     {
         const auto bitmap = stbtt_GetCodepointBitmap(
             &font, 0, scale, codepoint, &width, &height, &xOffset, &yOffset);
@@ -295,8 +296,6 @@ std::map<char, FontGlyph> LoadFontGlyphs(const std::string& path)
             continue;
         }
 
-        //Texture fontTexture = LoadTexture("assets/textures/cat.jpg");
-
         Texture fontTexture{};
         fontTexture.Width = width;
         fontTexture.Height = height;
@@ -306,15 +305,14 @@ std::map<char, FontGlyph> LoadFontGlyphs(const std::string& path)
         {
             for (int x = 0; x < width; ++x)
             {
-                unsigned char value = bitmap[y * width + x];
-                int dst = (y * width + x) * 4;
+                const unsigned char value = bitmap[y * width + x];
+                const int dst = (y * width + x) * 4;
                 fontTexture.Pixels[dst + 0] = 255;
                 fontTexture.Pixels[dst + 1] = 255;
                 fontTexture.Pixels[dst + 2] = 255;
                 fontTexture.Pixels[dst + 3] = value;
             }
         }
-
 
 		FontGlyph glyph{};
 		glyph.TextureView = CreateTextureView(fontTexture);
@@ -365,43 +363,43 @@ static void InitMainRenderingPipeline()
     ExitIfFailed(D3d11Device->CreatePixelShader(PsBuffer->GetBufferPointer(), PsBuffer->GetBufferSize(), nullptr, &PS));
 
     //Create the vertex buffer (cube)
-    std::vector<Vertex> v =
+    std::vector<Vertex> vertices =
     {
-        // Front Face (Z = -1)
-        { { -1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, { 0.0f, 1.0f } },
-        { {  1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 1.0f} },
-        { {  1.0f,  1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 0.0f} },
-        { { -1.0f,  1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 0.0f} },
+        // Front Face
+        { { -1.0f, -1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 1.0f } },
+        { { -1.0f,  1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
+        { {  1.0f,  1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 0.0f } },
+        { {  1.0f, -1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 1.0f } },
 
-        // Back Face (Z = +1)
-        { { -1.0f, -1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 1.0f} },
-        { {  1.0f, -1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 1.0f} },
-        { {  1.0f,  1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 0.0f} },
-        { { -1.0f,  1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 0.0f} },
+        // Back Face
+        { { -1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 1.0f } },
+        { {  1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 1.0f } },
+        { {  1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
+        { { -1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 0.0f } },
 
-        // Top Face (Y = +1)
-        { { -1.0f,  1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 1.0f} },
-        { { -1.0f,  1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 0.0f} },
-        { {  1.0f,  1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 0.0f} },
-        { {  1.0f,  1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 1.0f} },
+        // Top Face
+        { { -1.0f,  1.0f, -1.0f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 1.0f } },
+        { { -1.0f,  1.0f,  1.0f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
+        { {  1.0f,  1.0f,  1.0f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 0.0f } },
+        { {  1.0f,  1.0f, -1.0f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } },
 
-        // Bottom Face (Y = -1)
-        { { -1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 1.0f} },
-        { {  1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 1.0f} },
-        { {  1.0f, -1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 0.0f} },
-        { { -1.0f, -1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 0.0f} },
+        // Bottom Face
+        { { -1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 1.0f } },
+        { {  1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 1.0f } },
+        { {  1.0f, -1.0f,  1.0f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
+        { { -1.0f, -1.0f,  1.0f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 0.0f } },
 
-        // Left Face (X = -1)
-        { { -1.0f, -1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 1.0f} },
-        { { -1.0f,  1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 0.0f} },
-        { { -1.0f,  1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 0.0f} },
-        { { -1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 1.0f} },
+        // Left Face
+        { { -1.0f, -1.0f,  1.0f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
+        { { -1.0f,  1.0f,  1.0f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+        { { -1.0f,  1.0f, -1.0f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 0.0f } },
+        { { -1.0f, -1.0f, -1.0f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
 
-        // Right Face (X = +1)
-        { {  1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 1.0f} },
-        { {  1.0f,  1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, {0.0f, 0.0f} },
-        { {  1.0f,  1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 0.0f} },
-        { {  1.0f, -1.0f,  1.0f }, { 1.0f, 1.0f, 1.0f }, {1.0f, 1.0f} },
+        // Right Face
+        { {  1.0f, -1.0f, -1.0f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
+        { {  1.0f,  1.0f, -1.0f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+        { {  1.0f,  1.0f,  1.0f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 0.0f } },
+        { {  1.0f, -1.0f,  1.0f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
     };
 
     uint32_t indices[] =
@@ -443,7 +441,7 @@ static void InitMainRenderingPipeline()
     indexBufferDesc.CPUAccessFlags = 0;
     indexBufferDesc.MiscFlags = 0;
 
-    D3D11_SUBRESOURCE_DATA indexInitData;
+    D3D11_SUBRESOURCE_DATA indexInitData{};
 
     indexInitData.pSysMem = indices;
     ExitIfFailed(D3d11Device->CreateBuffer(&indexBufferDesc, &indexInitData, &CubesIndexBuffer));
@@ -452,7 +450,7 @@ static void InitMainRenderingPipeline()
     ZeroMemory(&vertexBufferDesc, sizeof(vertexBufferDesc));
 
     vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-    vertexBufferDesc.ByteWidth = sizeof(Vertex) * static_cast<UINT>(v.size());
+    vertexBufferDesc.ByteWidth = sizeof(Vertex) * static_cast<UINT>(vertices.size());
     vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     vertexBufferDesc.CPUAccessFlags = 0;
     vertexBufferDesc.MiscFlags = 0;
@@ -460,7 +458,7 @@ static void InitMainRenderingPipeline()
     D3D11_SUBRESOURCE_DATA vertexBufferData;
 
     ZeroMemory(&vertexBufferData, sizeof(vertexBufferData));
-    vertexBufferData.pSysMem = v.data();
+    vertexBufferData.pSysMem = vertices.data();
     ExitIfFailed(D3d11Device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &CubesVertBuffer));
 
     //Create the Input Layout
@@ -626,7 +624,7 @@ static void Init()
                                                D3D11_SDK_VERSION, &swapChainDesc, &SwapChain, &D3d11Device, nullptr, &D3d11DevContext));
 
     //Create our BackBuffer
-    ID3D11Texture2D* backBuffer;
+    ID3D11Texture2D* backBuffer = nullptr;
     ExitIfFailed(SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer));
 
     //Create our Render Target
@@ -752,29 +750,16 @@ static void Init()
     rasterizerDesc.FrontCounterClockwise = false;
     ExitIfFailed(D3d11Device->CreateRasterizerState(&rasterizerDesc, &ClockwiseCullMode));
 
-    D3D11DeletionQueue.PushFunction([=]() {
-        SwapChain->Release();
-        D3d11Device->Release();
-        D3d11DevContext->Release();
-        CubesVertBuffer->Release();
-        CubesIndexBuffer->Release();
-        VS->Release();
-        PS->Release();
-        VsBuffer->Release();
-        PsBuffer->Release();
-        VertLayout->Release();
-        DepthStencilView->Release();
-        DepthStencilBuffer->Release();
-        CbPerObjectBuffer->Release();
-        WireFrame->Release();
-        Solid->Release();
-        Transparency->Release();
-        CounterClockwiseCullMode->Release();
-        ClockwiseCullMode->Release();
-        CubesTextureView->Release();
-        CubesTexSamplerState->Release();
-        NoCull->Release();
-        });
+
+    ZeroMemory(&constantBufferDesc, sizeof(D3D11_BUFFER_DESC));
+
+    constantBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    constantBufferDesc.ByteWidth = sizeof(CbPerFrame);
+    constantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    constantBufferDesc.CPUAccessFlags = 0;
+    constantBufferDesc.MiscFlags = 0;
+
+    ExitIfFailed(D3d11Device->CreateBuffer(&constantBufferDesc, nullptr, &cbPerFrameBuffer));
 
     //Camera information
     CamPosition = { 0.0f, 3.0f, -8.0f };
@@ -789,20 +774,33 @@ static void Init()
         0.4f * 3.14f, static_cast<float>(GameResolutionWidth) / GameResolutionHeight, 1.0f, 1000.0f);
 
     LoadedFontGlyphs = LoadFontGlyphs("C:/Windows/Fonts/arial.ttf");
+
+	GlobalDirectionalLight.Direction = {.X = -0.25f, .Y = -0.5f, .Z = -1.0f };
+	GlobalDirectionalLight.Ambient = {.X = 0.15f, .Y = 0.15f, .Z = 0.15f };
+	GlobalDirectionalLight.Diffuse = {.X = 0.8f, .Y = 0.8f, .Z = 0.8f };
+
+    ConstBufferPerFrame.Light = GlobalDirectionalLight;
+
+    D3d11DevContext->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &ConstBufferPerFrame, 0, 0);
+    D3d11DevContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
 }
 
 static void Cleanup()
 {
-    D3D11DeletionQueue.Flush();
     SDL_DestroyWindow(Window);
 }
 
-static void Update()
+static void Update(const float dt)
 {
     //Keep the cubes rotating
-    Rot += .5f * DeltaTime;
+    Rot += .5f * dt;
     if (Rot > 6.28f)
         Rot = 0.0f;
+
+    GlobalDirectionalLight.Ambient = { 0.4f, 0.4f, 0.4f };
+    GlobalDirectionalLight.Color = { 1.0f, 1.0f, 1.0f };
+	V3 lightDir = Normalize({ -0.5f, 1.0f, 0.5f });
+    GlobalDirectionalLight.Direction = { lightDir.X, lightDir.Y, lightDir.Z, 0.0f };
 
     //Reset cube1World
     Cube1World = MatrixIdentity();
@@ -823,36 +821,6 @@ static void Update()
     //Set cube2's world space matrix
     Cube2World = Rotation * Scale;
 }
-
-
-static void RenderFontGlyph(char c)
-{
-	FontGlyph* glyph;
-	auto it = LoadedFontGlyphs.find(c);
-    if (it != LoadedFontGlyphs.end())
-    {
-        glyph = &it->second;
-    }
-    else
-    {
-        return;
-	}
-
-    // Switch to font rendering pipeline
-    D3d11DevContext->VSSetShader(FontVS, nullptr, 0);
-    D3d11DevContext->PSSetShader(FontPS, nullptr, 0);
-
-    // 
-	CbPerObj = {};
-    const M4 model = MatrixIdentity();
-
-
-    CbPerObj.Color = {.X = 1.0f, .Y = 1.0f, .Z = 1.0f, .W = 1.0f};
-    D3d11DevContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
-    D3d11DevContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
-    D3d11DevContext->PSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
-}
-
 
 static void RenderText(const std::string_view text, 
 	float x, float y, const float scale, const V3 color)
@@ -891,7 +859,6 @@ static void RenderText(const std::string_view text,
         const M4 translation = MatrixTranslation(xPos, yPos, 0.0f);
         const M4 model = scaling * translation;
 
-        // Set up constant buffer for each glyph
         CbPerObj = {};
         CbPerObj.Projection = projection;
         CbPerObj.View = MatrixIdentity();
@@ -940,6 +907,10 @@ static void Draw()
     //Turn off backface culling
     D3d11DevContext->RSSetState(NoCull);
 
+    ConstBufferPerFrame.Light = GlobalDirectionalLight;
+    D3d11DevContext->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &ConstBufferPerFrame, 0, 0);
+    D3d11DevContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
+
     CbPerObj = {};
 
     CbPerObj.Projection = CamProjection;
@@ -969,7 +940,7 @@ static void Draw()
     if (currentFrameCounter >= maxFrameCounter)
     {
         currentFrameCounter = 0;
-        FPS = 1.0f / DeltaTime;
+        FPS = static_cast<int>(1.0f / DeltaTime);
     }
 	else
     {
@@ -1006,16 +977,16 @@ static void Run()
                 bQuit = true;
         }
 
-        Update();
+        Update(DeltaTime);
         Draw();
     }
 }
 
 int main()
 {
-Init();
-Run();
-Cleanup();
+	Init();
+	Run();
+	Cleanup();
 
-return 0;
+    return 0;
 }

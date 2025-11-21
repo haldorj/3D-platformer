@@ -2,21 +2,18 @@
 
 #include "SDL3/SDL.h"
 
+#include <iostream>
 #include <fstream>
 #include <string>
-#include <iostream>
+#include <vector>
 #include <cstdint>
-#include <deque>
-#include <functional>
-#include <ranges>
 #include <print>
 #include <format>
 #include <map>
 #include <chrono>
 
-#ifdef __linux__ 
-
-#elif _WIN32
+#ifdef _WIN32
+// Windows specific includes
 #include <windows.h>
 
 #include <d3d11.h>
