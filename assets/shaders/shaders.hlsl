@@ -33,8 +33,10 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 texCoo
 {
     PSInput result;
 
+    float3 worldNormal = normalize(mul((float3x3) World, normal.xyz));
+    
     result.position = mul(Projection, mul(View, mul(World, position)));
-    result.normal = normal;
+    result.normal = float4(worldNormal, 1.0f);
     result.texCoord = texCoord;
 
     return result;

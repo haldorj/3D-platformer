@@ -799,7 +799,7 @@ static void Update(const float dt)
 
     GlobalDirectionalLight.Ambient = { 0.4f, 0.4f, 0.4f };
     GlobalDirectionalLight.Color = { 1.0f, 1.0f, 1.0f };
-	V3 lightDir = Normalize({ -0.5f, 1.0f, 0.5f });
+	V3 lightDir = Normalize({ 0.5f, 1.0f, 0.5f });
     GlobalDirectionalLight.Direction = { lightDir.X, lightDir.Y, lightDir.Z, 0.0f };
 
     //Reset cube1World
