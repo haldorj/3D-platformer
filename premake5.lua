@@ -1,6 +1,6 @@
-workspace "Abyss"
+workspace "Game"
 	architecture "x64"
-	startproject "Abyss"
+	startproject "Game"
 
 	configurations
 	{
@@ -9,25 +9,27 @@ workspace "Abyss"
 	}
 
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
-
 debugdir "%{wks.location}"
 
 IncludeDir = {}
-IncludeDir["SDL3"] = "Abyss/vendor/SDL3/include"
-IncludeDir["stb"] = "Abyss/vendor/stb"
+IncludeDir["stb"] = "Game/vendor/stb"
 
-project "Abyss"
-	location "Abyss"
-	kind "ConsoleApp"
+project "Game"
+	location "Game"
+	kind "WindowedApp"
 	language "C++"
 	cppdialect "C++latest"
 	staticruntime "on"
+
+	warnings "Extra"
+	disablewarnings {"4100"}
+	flags { "FatalWarnings" }
 
 	targetdir ("bin/" .. outputdir .. "/%{prj.name}")
 	objdir ("bin-int/" .. outputdir .. "/%{prj.name}")
 
 	pchheader "pch.h"
-	pchsource "Abyss/src/pch.cpp"
+	pchsource "Game/src/pch.cpp"
 
 	files
 	{
@@ -43,13 +45,11 @@ project "Abyss"
 	includedirs
 	{
 		"%{prj.name}/src",
-		"%{IncludeDir.SDL3}",
 		"%{IncludeDir.stb}",
 	}
 
 	links 
 	{ 
-		"Abyss/vendor/SDL3/Release/SDL3.lib",
 		"d3d11.lib", 
 		"dxgi.lib", 
 		"d3dcompiler.lib"
@@ -59,11 +59,11 @@ project "Abyss"
 		systemversion "latest"
 
 	filter "configurations:Debug"
-		defines "VK_DEBUG"
+		defines "GAME_DEBUG"
 		runtime "Debug"
 		symbols "on"
 
 	filter "configurations:Release"
-		defines "VK_RELEASE"
+		defines "GAME_RELEASE"
 		runtime "Release"
 		optimize "on"
