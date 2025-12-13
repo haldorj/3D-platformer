@@ -17,8 +17,6 @@ constexpr int GameResolutionHeight = 360;
 static float DeltaTime{};
 
 static int FPS{};
-static int maxFrameCounter = 80;
-static int currentFrameCounter{};
 
 static bool VSync = true;
 
@@ -79,7 +77,7 @@ M4 Scale;
 M4 Translation;
 float Rot = 0.01f;
 
-std::map<char, FontGlyph> LoadedFontGlyphs{};
+std::unordered_map<char, FontGlyph> LoadedFontGlyphs{};
 
 static void ExitIfFailed(const HRESULT hr)
 {
@@ -220,9 +218,9 @@ static Texture LoadTexture(const std::string& filename)
 }
 
 
-static std::map<char, FontGlyph> LoadFontGlyphs(const std::string& path)
+static std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path)
 {
-    std::map<char, FontGlyph> result;
+    std::unordered_map<char, FontGlyph> result;
 
     std::string ttfBuffer = ReadEntireFile(path);
     if (ttfBuffer.empty())
@@ -728,7 +726,7 @@ static void Cleanup()
 }
 */
 
-static void Update(const float dt)
+static void UpdateGame(const float dt)
 {
     //Keep the cubes rotating
     Rot += .5f * dt;
@@ -814,9 +812,16 @@ static void RenderText(const std::string_view text,
 
         x += glyph.Advance * scale;
     }
+
+    //Present the back buffer to the screen
+#ifdef _DEBUG
+    ExitIfFailed(SwapChain->Present(VSync, 0));
+#elif
+    SwapChain->Present(VSync, 0);
+#endif
 }
 
-static void Draw()
+static void RenderScene()
 {
     //Clear our back buffer (sky blue)
     constexpr float bgColor[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
@@ -874,34 +879,16 @@ static void Draw()
 
     //Draw the second cube
     D3d11DevContext->DrawIndexed(36, 0, 0);
-
-    if (currentFrameCounter >= maxFrameCounter)
-    {
-        currentFrameCounter = 0;
-        FPS = static_cast<int>(1.0f / DeltaTime);
-    }
-	else
-    {
-        currentFrameCounter++;
-    }
-    const std::string fpsStr = std::format("FPS: {}", FPS);
-	RenderText(fpsStr, 0, 0, 1.0f, { 1.0f, 1.0f, 1.0f });
-
-    //Present the back buffer to the screen
-#ifdef _DEBUG
-    ExitIfFailed(SwapChain->Present(VSync, 0));
-#elif
-    SwapChain->Present(VSync, 0);
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 //                          Windows Specific Code, move later                           //
 //////////////////////////////////////////////////////////////////////////////////////////
 
+
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
+void PlatformInitWindow(HINSTANCE hInstance, int nCmdShow)
 {
     // Register the window class.
     const wchar_t CLASS_NAME[] = L"Window Class";
@@ -926,12 +913,12 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     //DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     DWORD style = WS_OVERLAPPEDWINDOW;
 
-    auto windowText = L"Window";
+    auto windowText = L"DirectX 11";
 
     Hwnd = CreateWindowEx(
-        0,                              // Optional window styles.
-        CLASS_NAME,                     // Window class
-        windowText,                            // Window text
+        0,
+        CLASS_NAME,
+        windowText,
         style,
 
         // Size and position
@@ -945,10 +932,25 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     assert(Hwnd);
 
-
-
-    Init();
     ShowWindow(Hwnd, nCmdShow);
+}
+
+void PlatformUpdateWindow(MSG& msg, bool& running)
+{
+    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+    {
+        if (msg.message == WM_QUIT)
+            running = false;
+
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+}
+
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
+{
+    PlatformInitWindow(hInstance, nCmdShow);
+    Init();
 
     // Run the message loop.
 
@@ -956,25 +958,35 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     auto previousTime = std::chrono::steady_clock::now();
 
-    while (running)
-    {
-        MSG msg = { };
-        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-        {
-            if (msg.message == WM_QUIT)
-                running = false;
+    MSG msg = { };
 
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
+    while (running)
+    {  
+        static double fpsTimer = 0.0;
+        static int fpsFrameCount = 0;
+
+        fpsTimer += DeltaTime;
+        fpsFrameCount++;
+
+        if (fpsTimer >= 1.0)
+        {
+            FPS = static_cast<int>(fpsFrameCount / fpsTimer);
+            fpsFrameCount = 0;
+            fpsTimer = 0.0;
         }
+
+        const std::string fpsStr = std::format("FPS: {}", FPS);
+
+        PlatformUpdateWindow(msg, running);
+
+        UpdateGame(DeltaTime);
+        RenderScene();
+        RenderText(fpsStr, 0, 0, 1.0f, { 1.0f, 1.0f, 1.0f });
 
         auto currentTime = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed = currentTime - previousTime;
         previousTime = currentTime;
         DeltaTime = static_cast<float>(elapsed.count());
-
-        Update(DeltaTime);
-        Draw();
     }
 
     return 0;

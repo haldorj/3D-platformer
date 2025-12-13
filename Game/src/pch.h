@@ -8,6 +8,7 @@
 #include <print>
 #include <format>
 #include <map>
+#include <unordered_map>
 #include <chrono>
 
 #ifndef UNICODE
