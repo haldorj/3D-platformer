@@ -1,5 +1,7 @@
 #pragma once
 
+#include "handmade_math.h"
+
 struct Vertex
 {
     V3 Position{};
@@ -42,3 +44,10 @@ struct FontGlyph
     V2 Bearing{};
     float Advance{};
 };
+
+void Init();
+void UpdateGame(const float dt);
+void RenderScene();
+void RenderText(const std::string_view text, 
+	float x, float y, const float scale, const V3& color);
+void PresentSwapChain();

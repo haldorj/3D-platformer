@@ -5,22 +5,10 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
-#include "handmade_math.h"
 #include "game.h"
+#include "platform/platform.h"
 
 using Microsoft::WRL::ComPtr;
-
-constexpr int WindowWidth = 1280;
-constexpr int WindowHeight = 720;
-
-constexpr int GameResolutionWidth = 640;
-constexpr int GameResolutionHeight = 360;
-
-static float DeltaTime{};
-
-static int FPS{};
-
-static bool VSync = true;
 
 static DirectionalLight GlobalDirectionalLight{};
 
@@ -63,8 +51,6 @@ ID3D11RasterizerState* NoCull;
 
 CbPerObject CbPerObj;
 CbPerFrame ConstBufferPerFrame;
-
-static HWND Hwnd;
 
 M4 Cube1World;
 M4 Cube2World;
@@ -517,10 +503,8 @@ static void InitFontRenderingPipeline()
         FontVsBuffer->GetBufferSize(), &FontVertLayout));
 }
 
-static void Init()
+void Init()
 {
-    assert(Hwnd);
-
     //////////////////////////////////
     // Init D3D11                   //
     //////////////////////////////////
@@ -549,7 +533,12 @@ static void Init()
     swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
     swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
 
-    factory2->CreateSwapChainForHwnd(D3d11Device.Get(), Hwnd, &swapChainDesc, nullptr, nullptr, &SwapChain);
+	void* window = PlatformGetWindowHandle();
+	HWND hwnd = static_cast<HWND>(window);
+
+	assert(hwnd && "HWND is null!");
+    
+    factory2->CreateSwapChainForHwnd(D3d11Device.Get(), hwnd, &swapChainDesc, nullptr, nullptr, &SwapChain);
 
     //Create our BackBuffer
     ID3D11Texture2D* backBuffer = nullptr;
@@ -713,7 +702,7 @@ static void Init()
     D3d11DeviceContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
 }
 
-static void UpdateGame(const float dt)
+void UpdateGame(const float dt)
 {
     //Keep the cubes rotating
     Rot += .5f * dt;
@@ -745,7 +734,7 @@ static void UpdateGame(const float dt)
     Cube2World = Rotation * Scale;
 }
 
-static void RenderScene()
+void RenderScene()
 {
     //Clear our back buffer (sky blue)
     constexpr float bgColor[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
@@ -805,7 +794,7 @@ static void RenderScene()
     D3d11DeviceContext->DrawIndexed(36, 0, 0);
 }
 
-static void RenderText(const std::string_view text, 
+void RenderText(const std::string_view text, 
 	float x, float y, const float scale, const V3& color)
 {
     // Switch to font rendering pipeline
@@ -861,7 +850,7 @@ static void RenderText(const std::string_view text,
     }
 }
 
-static void PresentSwapChain()
+ void PresentSwapChain()
 {
     UINT PresentFlags = 0;
 	DXGI_PRESENT_PARAMETERS presentParams = {};
@@ -871,138 +860,4 @@ static void PresentSwapChain()
 #elif
     SwapChain->Present1(VSync, PresentFlags, &presentParams);
 #endif
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//                          Windows Specific Code, move later                           //
-//////////////////////////////////////////////////////////////////////////////////////////
-
-
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-
-void PlatformInitWindow(HINSTANCE hInstance, int nCmdShow)
-{
-    // Register the window class.
-    const wchar_t CLASS_NAME[] = L"Window Class";
-
-    WNDCLASS wc = { };
-
-    wc.lpfnWndProc = WindowProc;
-    wc.hInstance = hInstance;
-    wc.lpszClassName = CLASS_NAME;
-
-    RegisterClass(&wc);
-
-    // Adjust the window rectangle to include window decorations
-    RECT rect = { 0, 0, WindowWidth, WindowHeight };
-    AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
-
-    int adjustedWidth = rect.right - rect.left;
-    int adjustedHeight = rect.bottom - rect.top;
-
-    // Create the window.
-
-    DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
-    //DWORD style = WS_OVERLAPPEDWINDOW;
-
-    auto windowText = L"DirectX 11";
-
-    Hwnd = CreateWindowEx(
-        0,
-        CLASS_NAME,
-        windowText,
-        style,
-
-        // Size and position
-        CW_USEDEFAULT, CW_USEDEFAULT, adjustedWidth, adjustedHeight,
-
-        NULL,       // Parent window    
-        NULL,       // Menu
-        hInstance,  // Instance handle
-        NULL        // Additional application data
-    );
-
-    assert(Hwnd);
-
-    ShowWindow(Hwnd, nCmdShow);
-}
-
-void PlatformUpdateWindow(MSG& msg, bool& running)
-{
-    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-    {
-        if (msg.message == WM_QUIT)
-            running = false;
-
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-    }
-}
-
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
-{
-    PlatformInitWindow(hInstance, nCmdShow);
-    Init();
-
-    // Run the message loop.
-
-    bool running = true;
-
-    auto previousTime = std::chrono::steady_clock::now();
-
-    MSG msg = { };
-
-    while (running)
-    {  
-        static double fpsTimer = 0.0;
-        static int fpsFrameCount = 0;
-
-        fpsTimer += DeltaTime;
-        fpsFrameCount++;
-
-        if (fpsTimer >= 1.0)
-        {
-            FPS = static_cast<int>(fpsFrameCount / fpsTimer);
-            fpsFrameCount = 0;
-            fpsTimer = 0.0;
-        }
-
-        const std::string fpsStr = std::format("FPS: {}", FPS);
-
-        PlatformUpdateWindow(msg, running);
-
-        UpdateGame(DeltaTime);
-        RenderScene();
-        RenderText(fpsStr, 0, 0, 1.0f, { 1.0f, 1.0f, 1.0f });
-        PresentSwapChain();
-
-        auto currentTime = std::chrono::steady_clock::now();
-        std::chrono::duration<double> elapsed = currentTime - previousTime;
-        previousTime = currentTime;
-        DeltaTime = static_cast<float>(elapsed.count());
-    }
-
-    return 0;
-}
-
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    switch (uMsg)
-    {
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        return 0;
-
-    case WM_PAINT:
-    {
-        PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hwnd, &ps);
-
-        FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_WINDOW + 1));
-
-        EndPaint(hwnd, &ps);
-    }
-    return 0;
-    }
-    return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
