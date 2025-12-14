@@ -8,6 +8,8 @@
 #include "handmade_math.h"
 #include "game.h"
 
+using Microsoft::WRL::ComPtr;
+
 constexpr int WindowWidth = 1280;
 constexpr int WindowHeight = 720;
 
@@ -22,9 +24,10 @@ static bool VSync = true;
 
 static DirectionalLight GlobalDirectionalLight{};
 
-IDXGISwapChain* SwapChain;
-ID3D11Device* D3d11Device;
-ID3D11DeviceContext* D3d11DevContext;
+ComPtr<IDXGISwapChain1> SwapChain;
+ComPtr<ID3D11Device> D3d11Device;
+ComPtr<ID3D11DeviceContext> D3d11DeviceContext;
+
 ID3D11RenderTargetView* RenderTargetView;
 ID3D11DepthStencilView* DepthStencilView;
 ID3D11Texture2D* DepthStencilBuffer;
@@ -522,40 +525,31 @@ static void Init()
     // Init D3D11                   //
     //////////////////////////////////
 
-    //Describe our Buffer
-    DXGI_MODE_DESC bufferDesc;
-    ZeroMemory(&bufferDesc, sizeof(DXGI_MODE_DESC));
-
-    bufferDesc.Width = GameResolutionWidth;
-    bufferDesc.Height = GameResolutionHeight;
-    bufferDesc.RefreshRate.Numerator = 60;
-    bufferDesc.RefreshRate.Denominator = 1;
-    bufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    bufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-    bufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-
-    //Describe our SwapChain
-    DXGI_SWAP_CHAIN_DESC swapChainDesc;
-
-    ZeroMemory(&swapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
-
-    swapChainDesc.BufferDesc = bufferDesc;
-    swapChainDesc.SampleDesc.Count = 1;
-    swapChainDesc.SampleDesc.Quality = 0;
-    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swapChainDesc.BufferCount = 1;
-    swapChainDesc.OutputWindow = Hwnd;
-    swapChainDesc.Windowed = TRUE;
-    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-
     UINT createDeviceFlags = 0;
 #if defined(_DEBUG)
     createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
-    //Create our SwapChain
-    ExitIfFailed(D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags, nullptr, NULL,
-                                               D3D11_SDK_VERSION, &swapChainDesc, &SwapChain, &D3d11Device, nullptr, &D3d11DevContext));
+    ExitIfFailed(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags, nullptr, NULL,
+        D3D11_SDK_VERSION, &D3d11Device, nullptr, &D3d11DeviceContext));
+
+    ComPtr<IDXGIFactory2> factory2;
+    CreateDXGIFactory1(IID_PPV_ARGS(&factory2));
+
+    DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+    ZeroMemory(&swapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC1));
+
+    swapChainDesc.Width = GameResolutionWidth;
+    swapChainDesc.Height = GameResolutionHeight;
+    swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    swapChainDesc.SampleDesc.Count = 1;
+    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapChainDesc.BufferCount = 2;
+    swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
+    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+    swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+
+    factory2->CreateSwapChainForHwnd(D3d11Device.Get(), Hwnd, &swapChainDesc, nullptr, nullptr, &SwapChain);
 
     //Create our BackBuffer
     ID3D11Texture2D* backBuffer = nullptr;
@@ -566,7 +560,7 @@ static void Init()
     backBuffer->Release();
 
     //Describe our Depth/Stencil Buffer
-    D3D11_TEXTURE2D_DESC depthStencilDesc;
+    D3D11_TEXTURE2D_DESC depthStencilDesc = {};
 
     depthStencilDesc.Width = GameResolutionWidth;
     depthStencilDesc.Height = GameResolutionHeight;
@@ -584,8 +578,8 @@ static void Init()
     ExitIfFailed(D3d11Device->CreateTexture2D(&depthStencilDesc, nullptr, &DepthStencilBuffer));
     ExitIfFailed(D3d11Device->CreateDepthStencilView(DepthStencilBuffer, nullptr, &DepthStencilView));
 
-    //Set our Render Target
-    D3d11DevContext->OMSetRenderTargets(1, &RenderTargetView, DepthStencilView);
+    //Set our Render Target and Depth/Stencil Views
+    D3d11DeviceContext->OMSetRenderTargets(1, &RenderTargetView, DepthStencilView);
 
     //Create the Viewport
     D3D11_VIEWPORT viewport;
@@ -593,13 +587,13 @@ static void Init()
 
     viewport.TopLeftX = 0;
     viewport.TopLeftY = 0;
-    viewport.Width = GameResolutionWidth;
-    viewport.Height = GameResolutionHeight;
+    viewport.Width = static_cast<FLOAT>(GameResolutionWidth);
+    viewport.Height = static_cast<FLOAT>(GameResolutionHeight);
     viewport.MinDepth = 0.0f;
     viewport.MaxDepth = 1.0f;
 
     //Set the Viewport
-    D3d11DevContext->RSSetViewports(1, &viewport);
+    D3d11DeviceContext->RSSetViewports(1, &viewport);
 
     InitMainRenderingPipeline();
 	InitFontRenderingPipeline();
@@ -715,16 +709,9 @@ static void Init()
 
     ConstBufferPerFrame.Light = GlobalDirectionalLight;
 
-    D3d11DevContext->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &ConstBufferPerFrame, 0, 0);
-    D3d11DevContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
+    D3d11DeviceContext->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &ConstBufferPerFrame, 0, 0);
+    D3d11DeviceContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
 }
-
-/*
-static void Cleanup()
-{
-    //SDL_DestroyWindow(Window);
-}
-*/
 
 static void UpdateGame(const float dt)
 {
@@ -758,22 +745,82 @@ static void UpdateGame(const float dt)
     Cube2World = Rotation * Scale;
 }
 
+static void RenderScene()
+{
+    //Clear our back buffer (sky blue)
+    constexpr float bgColor[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
+    D3d11DeviceContext->ClearRenderTargetView(RenderTargetView, bgColor);
+
+    //Set Initial Vertex and Pixel Shaders
+    D3d11DeviceContext->VSSetShader(VS, nullptr, 0);
+    D3d11DeviceContext->PSSetShader(PS, nullptr, 0);
+
+    //Set the vertex buffer
+    UINT stride = sizeof(Vertex);
+    UINT offset = 0;
+
+    D3d11DeviceContext->IASetIndexBuffer(CubesIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+    D3d11DeviceContext->IASetVertexBuffers(0, 1, &CubesVertBuffer, &stride, &offset);
+    D3d11DeviceContext->IASetInputLayout(VertLayout);
+    D3d11DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    //Refresh the Depth/Stencil view
+    D3d11DeviceContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+    //Enable the Default Rasterizer State
+    D3d11DeviceContext->RSSetState(nullptr);
+    //Draw objects that will use backface culling
+
+    //Turn off backface culling
+    D3d11DeviceContext->RSSetState(NoCull);
+
+    ConstBufferPerFrame.Light = GlobalDirectionalLight;
+    D3d11DeviceContext->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &ConstBufferPerFrame, 0, 0);
+    D3d11DeviceContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
+
+    CbPerObj = {};
+
+    CbPerObj.Projection = CamProjection;
+    CbPerObj.View = CamView;
+    CbPerObj.World = Cube1World;
+
+    D3d11DeviceContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
+    D3d11DeviceContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
+    D3d11DeviceContext->PSSetShaderResources(0, 1, &CubesTextureView);
+    D3d11DeviceContext->PSSetSamplers(0, 1, &CubesTexSamplerState);
+
+    //Draw the first cube
+    D3d11DeviceContext->DrawIndexed(36, 0, 0);
+
+    CbPerObj.Projection = CamProjection;
+    CbPerObj.View = CamView;
+    CbPerObj.World = Cube2World;
+
+    D3d11DeviceContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
+    D3d11DeviceContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
+    D3d11DeviceContext->PSSetShaderResources(0, 1, &CubesTextureView);
+    D3d11DeviceContext->PSSetSamplers(0, 1, &CubesTexSamplerState);
+
+    //Draw the second cube
+    D3d11DeviceContext->DrawIndexed(36, 0, 0);
+}
+
 static void RenderText(const std::string_view text, 
-	float x, float y, const float scale, const V3 color)
+	float x, float y, const float scale, const V3& color)
 {
     // Switch to font rendering pipeline
-    D3d11DevContext->VSSetShader(FontVS, nullptr, 0);
-    D3d11DevContext->PSSetShader(FontPS, nullptr, 0);
+    D3d11DeviceContext->VSSetShader(FontVS, nullptr, 0);
+    D3d11DeviceContext->PSSetShader(FontPS, nullptr, 0);
 
     //Set the vertex buffer
     constexpr UINT stride = sizeof(float) * 4;
     constexpr UINT offset = 0;
-    D3d11DevContext->IASetVertexBuffers(0, 1, &QuadVertBuffer, &stride, &offset);
-    D3d11DevContext->IASetIndexBuffer(QuadIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-    D3d11DevContext->IASetInputLayout(FontVertLayout);
-    D3d11DevContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    D3d11DeviceContext->IASetVertexBuffers(0, 1, &QuadVertBuffer, &stride, &offset);
+    D3d11DeviceContext->IASetIndexBuffer(QuadIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+    D3d11DeviceContext->IASetInputLayout(FontVertLayout);
+    D3d11DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    D3d11DevContext->RSSetState(NoCull);
+    D3d11DeviceContext->RSSetState(NoCull);
 
 	const M4 projection = MatrixOrthographicBR(
         static_cast<float>(GameResolutionWidth), static_cast<float>(GameResolutionHeight), 0.0f, 1.0f);
@@ -802,83 +849,28 @@ static void RenderText(const std::string_view text,
 
         CbPerObj.Color = { color.X, color.Y, color.Z, 1.0f };
 
-        D3d11DevContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
-        D3d11DevContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
-        D3d11DevContext->PSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
+        D3d11DeviceContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
+        D3d11DeviceContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
+        D3d11DeviceContext->PSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
 
-        D3d11DevContext->PSSetShaderResources(0, 1, &glyph.TextureView);
+        D3d11DeviceContext->PSSetShaderResources(0, 1, &glyph.TextureView);
 
-        D3d11DevContext->DrawIndexed(6, 0, 0);
+        D3d11DeviceContext->DrawIndexed(6, 0, 0);
 
         x += glyph.Advance * scale;
     }
-
-    //Present the back buffer to the screen
-#ifdef _DEBUG
-    ExitIfFailed(SwapChain->Present(VSync, 0));
-#elif
-    SwapChain->Present(VSync, 0);
-#endif
 }
 
-static void RenderScene()
+static void PresentSwapChain()
 {
-    //Clear our back buffer (sky blue)
-    constexpr float bgColor[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
-    D3d11DevContext->ClearRenderTargetView(RenderTargetView, bgColor);
+    UINT PresentFlags = 0;
+	DXGI_PRESENT_PARAMETERS presentParams = {};
 
-    //Set Initial Vertex and Pixel Shaders
-    D3d11DevContext->VSSetShader(VS, nullptr, 0);
-    D3d11DevContext->PSSetShader(PS, nullptr, 0);
-
-    //Set the vertex buffer
-    UINT stride = sizeof(Vertex);
-    UINT offset = 0;
-
-    D3d11DevContext->IASetIndexBuffer(CubesIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-    D3d11DevContext->IASetVertexBuffers(0, 1, &CubesVertBuffer, &stride, &offset);
-    D3d11DevContext->IASetInputLayout(VertLayout);
-    D3d11DevContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-    //Refresh the Depth/Stencil view
-    D3d11DevContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-
-    //Enable the Default Rasterizer State
-    D3d11DevContext->RSSetState(nullptr);
-    //Draw objects that will use backface culling
-
-    //Turn off backface culling
-    D3d11DevContext->RSSetState(NoCull);
-
-    ConstBufferPerFrame.Light = GlobalDirectionalLight;
-    D3d11DevContext->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &ConstBufferPerFrame, 0, 0);
-    D3d11DevContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
-
-    CbPerObj = {};
-
-    CbPerObj.Projection = CamProjection;
-    CbPerObj.View = CamView;
-    CbPerObj.World = Cube1World;
-
-    D3d11DevContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
-    D3d11DevContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
-    D3d11DevContext->PSSetShaderResources(0, 1, &CubesTextureView);
-    D3d11DevContext->PSSetSamplers(0, 1, &CubesTexSamplerState);
-
-    //Draw the first cube
-    D3d11DevContext->DrawIndexed(36, 0, 0);
-
-    CbPerObj.Projection = CamProjection;
-    CbPerObj.View = CamView;
-    CbPerObj.World = Cube2World;
-
-    D3d11DevContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
-    D3d11DevContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
-    D3d11DevContext->PSSetShaderResources(0, 1, &CubesTextureView);
-    D3d11DevContext->PSSetSamplers(0, 1, &CubesTexSamplerState);
-
-    //Draw the second cube
-    D3d11DevContext->DrawIndexed(36, 0, 0);
+#ifdef _DEBUG
+    ExitIfFailed(SwapChain->Present1(VSync, PresentFlags, &presentParams));
+#elif
+    SwapChain->Present1(VSync, PresentFlags, &presentParams);
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -910,8 +902,8 @@ void PlatformInitWindow(HINSTANCE hInstance, int nCmdShow)
 
     // Create the window.
 
-    //DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
-    DWORD style = WS_OVERLAPPEDWINDOW;
+    DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+    //DWORD style = WS_OVERLAPPEDWINDOW;
 
     auto windowText = L"DirectX 11";
 
@@ -982,6 +974,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         UpdateGame(DeltaTime);
         RenderScene();
         RenderText(fpsStr, 0, 0, 1.0f, { 1.0f, 1.0f, 1.0f });
+        PresentSwapChain();
 
         auto currentTime = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed = currentTime - previousTime;
@@ -1004,8 +997,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
-
-        // All painting occurs here, between BeginPaint and EndPaint.
 
         FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_WINDOW + 1));
 
