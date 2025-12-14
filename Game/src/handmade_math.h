@@ -307,7 +307,7 @@ inline M4 MatrixOrthographic(const float width, const float height,
 	return result;
 }
 
-inline M4 MatrixOrthographicBR(const float width, const float height,
+inline M4 MatrixOrthographicBL(const float width, const float height,
                                const float nearPlane, const float farPlane)
 {
 	M4 m = {};
@@ -324,7 +324,24 @@ inline M4 MatrixOrthographicBR(const float width, const float height,
 	return m;
 }
 
-inline M4 MatrixPerspective(const float fovY, const float aspect, 
+inline M4 MatrixOrthographicTL(float width, float height,
+	float nearPlane, float farPlane)
+{
+	M4 m = {};
+
+	m.M[0][0] = 2.0f / width;
+	m.M[1][1] = -2.0f / height;
+	m.M[2][2] = 1.0f / (nearPlane - farPlane);
+
+	m.M[3][0] = -1.0f;
+	m.M[3][1] = 1.0f;
+	m.M[3][2] = -nearPlane / (farPlane - nearPlane);
+	m.M[3][3] = 1.0f;
+
+	return m;
+}
+
+inline M4 MatrixPerspective(const float fovY, const float aspect,
 	const float nearPlane, const float farPlane)
 {
 	M4 result = {};

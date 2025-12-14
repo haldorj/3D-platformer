@@ -1,7 +1,6 @@
 #include "pch.h"
 
 #include "platform/platform.h"
-
 #include "game.h"
 
 int main()
@@ -29,14 +28,17 @@ int main()
             fpsTimer = 0.0;
         }
 
-        const std::string fpsStr = std::format("FPS: {}", FPS);
+        V3 textColor = { 1.0f, 1.0f, 1.0f };
+        float textScale = 0.75f;
+        const std::string fpsStr = std::move(std::format("FPS: {}", FPS));
 
         PlatformUpdateWindow(running);
 
         UpdateGame(DeltaTime);
 
         RenderScene();
-        RenderText(fpsStr, 0, 0, 1.0f, { 1.0f, 1.0f, 1.0f });
+        RenderText(fpsStr, 0, 0, textScale, textColor);
+        RenderText("www", 0, 30, textScale, textColor);
         PresentSwapChain();
 
         auto currentTime = std::chrono::steady_clock::now();

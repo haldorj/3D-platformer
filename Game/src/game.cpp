@@ -212,10 +212,8 @@ static std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& pat
     std::unordered_map<char, FontGlyph> result;
 
     std::string ttfBuffer = ReadEntireFile(path);
-    if (ttfBuffer.empty())
-    {
-        return {};
-	}
+	assert(ttfBuffer.size()); // Ensure the font file was read successfully
+
     const unsigned char* data = (unsigned char*)ttfBuffer.data();
 
     stbtt_fontinfo font{};
@@ -244,7 +242,7 @@ static std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& pat
         Texture fontTexture{};
         fontTexture.Width = width;
         fontTexture.Height = height;
-        fontTexture.Pixels.assign(width * height * 4, 0);
+        fontTexture.Pixels.assign(static_cast<size_t>(width * height * 4), 0);
 
         for (int y = 0; y < height; ++y)
         {
@@ -261,8 +259,8 @@ static std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& pat
 
 		FontGlyph glyph{};
 		glyph.TextureView = CreateTextureView(fontTexture);
-		glyph.Size = {.X = static_cast<float>(width), .Y = static_cast<float>(height) };
-		glyph.Bearing = {.X = static_cast<float>(xOffset), .Y = static_cast<float>(-yOffset) };
+		glyph.Size = {.X = static_cast<float>(width), .Y = static_cast<float>(-height) };
+		glyph.Bearing = {.X = static_cast<float>(xOffset), .Y = static_cast<float>(yOffset + pixelHeight) };
 		glyph.Advance = scale * static_cast<float>(advance);
 
         result.emplace(codepoint, glyph);
@@ -690,7 +688,7 @@ void Init()
     CamProjection = MatrixPerspective(
         0.4f * 3.14f, static_cast<float>(GameResolutionWidth) / GameResolutionHeight, 1.0f, 1000.0f);
 
-    LoadedFontGlyphs = LoadFontGlyphs("C:/Windows/Fonts/arial.ttf");
+    LoadedFontGlyphs = std::move(LoadFontGlyphs("C:/Windows/Fonts/calibri.ttf"));
 
 	GlobalDirectionalLight.Direction = {.X = -0.25f, .Y = -0.5f, .Z = -1.0f };
 	GlobalDirectionalLight.Ambient = {.X = 0.15f, .Y = 0.15f, .Z = 0.15f };
@@ -811,7 +809,7 @@ void RenderText(const std::string_view text,
 
     D3d11DeviceContext->RSSetState(NoCull);
 
-	const M4 projection = MatrixOrthographicBR(
+	const M4 projection = MatrixOrthographicTL(
         static_cast<float>(GameResolutionWidth), static_cast<float>(GameResolutionHeight), 0.0f, 1.0f);
 
     for (char c : text)
