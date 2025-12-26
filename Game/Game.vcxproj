@@ -103,18 +103,24 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="src\application.h" />
     <ClInclude Include="src\game.h" />
     <ClInclude Include="src\handmade_math.h" />
     <ClInclude Include="src\pch.h" />
     <ClInclude Include="src\platform\platform.h" />
+    <ClInclude Include="src\platform\win32_platform.h" />
+    <ClInclude Include="src\renderer\d3d11_renderer.h" />
+    <ClInclude Include="src\renderer\renderer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\application.cpp" />
     <ClCompile Include="src\game.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="src\platform\win32_platform.cpp" />
+    <ClCompile Include="src\renderer\d3d11_renderer.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -10,6 +10,7 @@
 #include <map>
 #include <unordered_map>
 #include <chrono>
+#include <memory>
 
 #ifndef UNICODE
 #define UNICODE

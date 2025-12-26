@@ -1,23 +1,42 @@
 #include "pch.h"
-#include "platform/platform.h"
+#include "platform/win32_platform.h"
 
 #ifdef _WIN32
 
 static inline HWND Hwnd;
 static inline HINSTANCE hInstance;
-static int nCmdShow;
 
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    switch (uMsg)
+    {
+    case WM_DESTROY:
+        PostQuitMessage(0);
+        return 0;
 
-void PlatformInitWindow(int windowWidth, int windowHeight, const wchar_t* title)
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
+
+        FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_WINDOW + 1));
+
+        EndPaint(hwnd, &ps);
+    }
+    return 0;
+    }
+    return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
+
+void Win32Platform::PlatformInitWindow(int windowWidth, int windowHeight, const wchar_t* title)
 {
     // Register the window class.
     const wchar_t CLASS_NAME[] = L"Window Class";
 
     WNDCLASS wc = { };
 
-	hInstance = GetModuleHandle(NULL);
-    nCmdShow = SW_SHOW;
+    hInstance = GetModuleHandle(NULL);
+    int nCmdShow = SW_SHOW;
 
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = hInstance;
@@ -59,9 +78,9 @@ void PlatformInitWindow(int windowWidth, int windowHeight, const wchar_t* title)
     ShowWindow(Hwnd, nCmdShow);
 }
 
-void PlatformUpdateWindow(bool& running)
+void Win32Platform::PlatformUpdateWindow(bool& running)
 {
-	MSG msg = { };
+    MSG msg = { };
     while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
     {
         if (msg.message == WM_QUIT)
@@ -72,31 +91,9 @@ void PlatformUpdateWindow(bool& running)
     }
 }
 
-void* PlatformGetWindowHandle()
+void* Win32Platform::PlatformGetWindowHandle()
 {
-	return static_cast<void*>(Hwnd);
-}
-
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    switch (uMsg)
-    {
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        return 0;
-
-    case WM_PAINT:
-    {
-        PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hwnd, &ps);
-
-        FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_WINDOW + 1));
-
-        EndPaint(hwnd, &ps);
-    }
-    return 0;
-    }
-    return DefWindowProc(hwnd, uMsg, wParam, lParam);
+    return static_cast<void*>(Hwnd);
 }
 
 #endif // _WIN32
