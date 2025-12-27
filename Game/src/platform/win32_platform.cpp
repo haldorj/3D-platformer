@@ -78,13 +78,13 @@ void Win32Platform::PlatformInitWindow(int windowWidth, int windowHeight, const 
     ShowWindow(Hwnd, nCmdShow);
 }
 
-void Win32Platform::PlatformUpdateWindow(bool& running)
+void Win32Platform::PlatformUpdateWindow(bool& Running)
 {
     MSG msg = { };
     while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
     {
         if (msg.message == WM_QUIT)
-            running = false;
+            Running = false;
 
         TranslateMessage(&msg);
         DispatchMessage(&msg);

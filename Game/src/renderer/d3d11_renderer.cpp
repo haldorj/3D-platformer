@@ -287,8 +287,7 @@ void D3D11Renderer::InitFontRenderingPipeline()
         FontVsBuffer->GetBufferSize(), &FontVertLayout));
 }
 
-void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, 
-    Platform& platform, GameState& gameState, Application& app)
+void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Application& app)
 {
     //////////////////////////////////
     // Init D3D11                   //
@@ -318,7 +317,7 @@ void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth,
     swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
     swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
 
-    void* window = platform.PlatformGetWindowHandle();
+    void* window = app._Platform->PlatformGetWindowHandle();
     HWND hwnd = static_cast<HWND>(window);
 
     assert(hwnd && "HWND is null!");
@@ -463,7 +462,7 @@ void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth,
 
     ExitIfFailed(D3d11Device->CreateBuffer(&constantBufferDesc, nullptr, &cbPerFrameBuffer));
 
-    ConstBufferPerFrame.Light = gameState.GlobalDirectionalLight;
+    ConstBufferPerFrame.Light = app._GameState.GlobalDirectionalLight;
 
     D3d11DeviceContext->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &ConstBufferPerFrame, 0, 0);
     D3d11DeviceContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);

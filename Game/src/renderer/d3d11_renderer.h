@@ -1,8 +1,6 @@
 #pragma once
 
 #include "renderer.h"
-#include "handmade_math.h"
-#include "game.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -19,21 +17,21 @@ struct CbPerFrame
     DirectionalLight Light{};
 };
 
-class D3D11Renderer : public Renderer
+class D3D11Renderer final : public Renderer
 {
 public:
-    virtual void InitRenderer(int gameHeight, int gameWidth,
-        Platform& platform, GameState& gameState, Application& app) override;
+    void InitRenderer(int gameHeight, int gameWidth, Application& app) override;
 
-	virtual void InitMainRenderingPipeline() override;
-	virtual void InitFontRenderingPipeline() override;
-	virtual void* CreateTextureView(const Texture& texture) override;
+	void InitMainRenderingPipeline() override;
+	void InitFontRenderingPipeline() override;
+	void* CreateTextureView(const Texture& texture) override;
 
-	virtual void RenderScene(GameState& gameState) override;
-	virtual void RenderText(GameState& gameState, int w, int h,
+	void RenderScene(GameState& gameState) override;
+	void RenderText(GameState& gameState, int w, int h,
         const std::string_view text, float x, float y, 
         const float scale, const V3& color) override;
-	virtual void PresentSwapChain(bool& vSync) override;
+
+	void PresentSwapChain(bool& vSync) override;
 
 private:
     ComPtr<IDXGISwapChain1> SwapChain;

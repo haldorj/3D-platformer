@@ -3,10 +3,6 @@
 #include "application.h"
 
 class Application;
-class Platform;
-struct GameState;
-struct Texture;
-struct V3;
 
 class Renderer
 {
@@ -14,7 +10,7 @@ public:
 	virtual void* CreateTextureView(const Texture& texture) = 0;
 
 	virtual void InitRenderer(int gameHeight, int gameWidth,
-		Platform& platform, GameState& gameState, Application& app) = 0;
+		Application& app) = 0;
 
 	virtual void InitMainRenderingPipeline() = 0;
 

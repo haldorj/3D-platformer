@@ -1,18 +1,29 @@
 #pragma once
-#include <renderer/renderer.h>
-#include <game.h>
+
+#include "game.h"
+#include "platform/platform.h"
+#include "renderer/renderer.h"
 
 class Application
 {
 public:
-    void InitGame(int gameResolutionWidth, int gameResolutionHeight,
-        GameState& gameState, Renderer& renderer);
-    void UpdateGame(const float dt, GameState& gameState);
+    void Init();
+    void Run();
+
+    void InitGame(int gameResolutionWidth, int gameResolutionHeight);
+    void UpdateGame(const float dt);
+
+    std::string ReadEntireFile(const std::string& path);
 
     Texture CreateErrorTexture();
-    std::string ReadEntireFile(const std::string& filename);
-    Texture LoadTexture(const std::string& filename);
+    Texture LoadTexture(const std::string& path);
 
     std::unordered_map<char, FontGlyph> LoadFontGlyphs(
-        const std::string& path, Renderer& renderer);
+        const std::string& path);
+
+public:
+    GameState _GameState;
+
+    std::unique_ptr<Platform> _Platform;
+    std::unique_ptr<Renderer> _Renderer;
 };

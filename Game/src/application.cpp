@@ -1,11 +1,147 @@
 #include "pch.h"
 #include "application.h"
-#include <game.cpp>
 
-std::unordered_map<char, FontGlyph> Application::LoadFontGlyphs(
-    const std::string& path, Renderer& renderer)
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "stb_truetype.h"
+
+#include "platform/win32_platform.h"
+#include "renderer/d3d11_renderer.h"
+
+static int WindowWidth = 1280;
+static int WindowHeight = 720;
+
+static int GameResolutionWidth = 1280;
+static int GameResolutionHeight = 720;
+
+static bool VSync{true};
+
+static int FPS = 0;
+
+static bool Running;
+
+void Application::Init()
+{
+#ifdef _WIN32
+    _Platform = std::make_unique<Win32Platform>();
+    _Renderer = std::make_unique<D3D11Renderer>();
+#endif
+    assert(_Platform);
+    assert(_Renderer);
+
+    _Platform->PlatformInitWindow(WindowWidth, WindowHeight, L"Window");
+
+    _Renderer->InitRenderer(
+        GameResolutionHeight, GameResolutionWidth, *this);
+
+    InitGame(GameResolutionWidth, GameResolutionHeight);
+}
+
+void Application::Run()
+{
+	Running = true;
+    auto previousTime = std::chrono::steady_clock::now();
+
+    while (Running)
+    {
+        static double fpsTimer{};
+        static int fpsFrameCount{};
+        static float deltaTime{};
+
+        fpsTimer += deltaTime;
+        fpsFrameCount++;
+
+        if (fpsTimer >= 1.0)
+        {
+            FPS = static_cast<int>(fpsFrameCount / fpsTimer);
+            fpsFrameCount = 0;
+            fpsTimer = 0.0;
+        }
+
+        V3 textColor = { 1.0f, 1.0f, 1.0f };
+        float textScale = 0.75f;
+        const std::string fpsStr = std::move(std::format("FPS: {}", FPS));
+
+        _Platform->PlatformUpdateWindow(Running);
+
+        UpdateGame(deltaTime);
+
+        _Renderer->RenderScene(_GameState);
+        _Renderer->RenderText(_GameState,
+            GameResolutionWidth, GameResolutionHeight,
+            fpsStr, 0, 0, textScale, textColor);
+        _Renderer->RenderText(_GameState,
+            GameResolutionWidth, GameResolutionHeight,
+            "www123", 0, 21, 0.4f, textColor);
+        _Renderer->PresentSwapChain(VSync);
+
+        auto currentTime = std::chrono::steady_clock::now();
+        std::chrono::duration<double> elapsed = currentTime - previousTime;
+        previousTime = currentTime;
+        deltaTime = static_cast<float>(elapsed.count());
+    }
+}
+
+void Application::InitGame(int gameResolutionWidth, int gameResolutionHeight)
+{
+    //Camera information
+    _GameState.CamPosition = { 0.0f, 3.0f, -8.0f };
+    _GameState.CamTarget = { 0.0f, 0.0f, 0.0f };
+    _GameState.CamUp = { 0.0f, 1.0f, 0.0f };
+
+    //Set the View matrix
+    _GameState.CamView = MatrixLookAt(
+        _GameState.CamPosition, _GameState.CamTarget, _GameState.CamUp);
+
+    //Set the Projection matrix
+    _GameState.CamProjection = MatrixPerspective(
+        0.4f * 3.14f, static_cast<float>(gameResolutionWidth) / gameResolutionHeight, 1.0f, 1000.0f);
+    auto fontGlyphs = LoadFontGlyphs("C:/Windows/Fonts/calibri.ttf");
+    _GameState.LoadedFontGlyphs = std::move(fontGlyphs);
+
+    _GameState.GlobalDirectionalLight.Direction = { .X = -0.25f, .Y = -0.5f, .Z = -1.0f };
+    _GameState.GlobalDirectionalLight.Ambient = { .X = 0.15f, .Y = 0.15f, .Z = 0.15f };
+    _GameState.GlobalDirectionalLight.Diffuse = { .X = 0.8f, .Y = 0.8f, .Z = 0.8f };
+}
+
+void Application::UpdateGame(const float dt)
+{
+    //Keep the cubes rotating
+    _GameState.Rot += .5f * dt;
+    if (_GameState.Rot > 6.28f)
+        _GameState.Rot = 0.0f;
+
+    _GameState.GlobalDirectionalLight.Ambient = { 0.4f, 0.4f, 0.4f };
+    _GameState.GlobalDirectionalLight.Color = { 1.0f, 1.0f, 1.0f };
+    V3 lightDir = Normalize({ 0.5f, 1.0f, 0.5f });
+    _GameState.GlobalDirectionalLight.Direction = { lightDir.X, lightDir.Y, lightDir.Z, 0.0f };
+
+    //Reset cube1World
+    _GameState.Cube1World = MatrixIdentity();
+
+    _GameState.Rotation = MatrixRotationY(_GameState.Rot);
+    _GameState.Translation = MatrixTranslation(0.0f, 0.0f, 4.0f);
+
+    //Set cube1's world space using the transformations
+    _GameState.Cube1World = _GameState.Translation * _GameState.Rotation;
+
+    //Reset cube2World
+    _GameState.Cube2World = MatrixIdentity();
+
+    //Define cube2's world space matrix
+    _GameState.Rotation = MatrixRotationY(_GameState.Rot);
+    _GameState.Scale = MatrixScaling(1.3f, 1.3f, 1.3f);
+
+    //Set cube2's world space matrix
+    _GameState.Cube2World = _GameState.Rotation * _GameState.Scale;
+}
+
+std::unordered_map<char, FontGlyph> Application::LoadFontGlyphs(const std::string& path)
 {
     std::unordered_map<char, FontGlyph> result;
+
+    assert(_Renderer);
 
     std::string ttfBuffer = ReadEntireFile(path);
     assert(ttfBuffer.size()); // Ensure the font file was read successfully
@@ -54,7 +190,7 @@ std::unordered_map<char, FontGlyph> Application::LoadFontGlyphs(
         }
 
         FontGlyph glyph{};
-        glyph.TextureView = renderer.CreateTextureView(fontTexture);
+        glyph.TextureView = _Renderer.get()->CreateTextureView(fontTexture);
         glyph.Size = { .X = static_cast<float>(width), .Y = static_cast<float>(-height) };
         glyph.Bearing = { .X = static_cast<float>(xOffset), .Y = static_cast<float>(yOffset + pixelHeight) };
         glyph.Advance = scale * static_cast<float>(advance);
@@ -65,60 +201,6 @@ std::unordered_map<char, FontGlyph> Application::LoadFontGlyphs(
     }
 
     return result;
-}
-
-void Application::InitGame(int gameResolutionWidth, int gameResolutionHeight,
-    GameState& gameState, Renderer& renderer)
-{
-    //Camera information
-    gameState.CamPosition = { 0.0f, 3.0f, -8.0f };
-    gameState.CamTarget = { 0.0f, 0.0f, 0.0f };
-    gameState.CamUp = { 0.0f, 1.0f, 0.0f };
-
-    //Set the View matrix
-    gameState.CamView = MatrixLookAt(gameState.CamPosition, gameState.CamTarget, gameState.CamUp);
-
-    //Set the Projection matrix
-    gameState.CamProjection = MatrixPerspective(
-        0.4f * 3.14f, static_cast<float>(gameResolutionWidth) / gameResolutionHeight, 1.0f, 1000.0f);
-    auto fontGlyphs = LoadFontGlyphs("C:/Windows/Fonts/calibri.ttf", renderer);
-    gameState.LoadedFontGlyphs = std::move(fontGlyphs);
-
-    gameState.GlobalDirectionalLight.Direction = { .X = -0.25f, .Y = -0.5f, .Z = -1.0f };
-    gameState.GlobalDirectionalLight.Ambient = { .X = 0.15f, .Y = 0.15f, .Z = 0.15f };
-    gameState.GlobalDirectionalLight.Diffuse = { .X = 0.8f, .Y = 0.8f, .Z = 0.8f };
-}
-
-void Application::UpdateGame(const float dt, GameState& gameState)
-{
-    //Keep the cubes rotating
-    gameState.Rot += .5f * dt;
-    if (gameState.Rot > 6.28f)
-        gameState.Rot = 0.0f;
-
-    gameState.GlobalDirectionalLight.Ambient = { 0.4f, 0.4f, 0.4f };
-    gameState.GlobalDirectionalLight.Color = { 1.0f, 1.0f, 1.0f };
-    V3 lightDir = Normalize({ 0.5f, 1.0f, 0.5f });
-    gameState.GlobalDirectionalLight.Direction = { lightDir.X, lightDir.Y, lightDir.Z, 0.0f };
-
-    //Reset cube1World
-    gameState.Cube1World = MatrixIdentity();
-
-    gameState.Rotation = MatrixRotationY(gameState.Rot);
-    gameState.Translation = MatrixTranslation(0.0f, 0.0f, 4.0f);
-
-    //Set cube1's world space using the transformations
-    gameState.Cube1World = gameState.Translation * gameState.Rotation;
-
-    //Reset cube2World
-    gameState.Cube2World = MatrixIdentity();
-
-    //Define cube2's world space matrix
-    gameState.Rotation = MatrixRotationY(gameState.Rot);
-    gameState.Scale = MatrixScaling(1.3f, 1.3f, 1.3f);
-
-    //Set cube2's world space matrix
-    gameState.Cube2World = gameState.Rotation * gameState.Scale;
 }
 
 Texture Application::CreateErrorTexture()
@@ -168,12 +250,12 @@ Texture Application::CreateErrorTexture()
     return texture;
 }
 
-std::string Application::ReadEntireFile(const std::string& filename)
+std::string Application::ReadEntireFile(const std::string& path)
 {
-    std::ifstream file(filename, std::ios::binary | std::ios::ate);
+    std::ifstream file(path.c_str(), std::ios::binary | std::ios::ate);
     if (!file)
     {
-        std::print("Failed to open file: {}", filename);
+        std::print("Failed to open file: {}", path);
         return {};
     }
 
@@ -183,16 +265,16 @@ std::string Application::ReadEntireFile(const std::string& filename)
     std::string buffer(size, '\0');
     if (!file.read(buffer.data(), size))
     {
-        std::print("Failed to read file: {}", filename);
+        std::print("Failed to read file: {}", path);
         return {};
     }
     return buffer;
 }
 
-Texture Application::LoadTexture(const std::string& filename)
+Texture Application::LoadTexture(const std::string& path)
 {
     int width, height, channels;
-    unsigned char* data = stbi_load(filename.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+    unsigned char* data = stbi_load(path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
 
     if (!data)
     {
@@ -205,4 +287,3 @@ Texture Application::LoadTexture(const std::string& filename)
     texture.Pixels = std::vector<unsigned char>(data, data + (width * height * 4));
     return texture;
 }
-

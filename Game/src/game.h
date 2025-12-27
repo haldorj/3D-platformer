@@ -2,7 +2,6 @@
 
 #include "handmade_math.h"
 
-class Platform;
 class Renderer;
 
 struct Vertex
@@ -37,6 +36,8 @@ struct FontGlyph
 
 struct GameState
 {
+    std::unordered_map<char, FontGlyph> LoadedFontGlyphs{};
+
     DirectionalLight GlobalDirectionalLight{};
 
     M4 Cube1World;
@@ -44,15 +45,14 @@ struct GameState
     M4 CamView;
     M4 CamProjection;
 
+    M4 Rotation;
+    M4 Scale;
+    M4 Translation;
+
     V3 CamPosition;
     V3 CamTarget;
     V3 CamUp;
 
-    M4 Rotation;
-    M4 Scale;
-    M4 Translation;
     float Rot = 0.01f;
-
-    std::unordered_map<char, FontGlyph> LoadedFontGlyphs{};
 };
 
