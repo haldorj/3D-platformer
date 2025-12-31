@@ -103,9 +103,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="src\application.h" />
     <ClInclude Include="src\game.h" />
-    <ClInclude Include="src\handmade_math.h" />
+    <ClInclude Include="src\math\handmade_math.h" />
     <ClInclude Include="src\pch.h" />
     <ClInclude Include="src\platform\platform.h" />
     <ClInclude Include="src\platform\win32_platform.h" />
@@ -113,7 +112,6 @@
     <ClInclude Include="src\renderer\renderer.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\application.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>

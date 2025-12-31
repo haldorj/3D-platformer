@@ -9,9 +9,8 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\application.h" />
     <ClInclude Include="src\game.h" />
-    <ClInclude Include="src\handmade_math.h" />
+    <ClInclude Include="src\math\handmade_math.h" />
     <ClInclude Include="src\pch.h" />
     <ClInclude Include="src\platform\platform.h">
       <Filter>platform</Filter>
@@ -27,7 +26,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\application.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\pch.cpp" />
     <ClCompile Include="src\platform\win32_platform.cpp">

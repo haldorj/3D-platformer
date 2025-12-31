@@ -1,6 +1,6 @@
 #pragma once
 
-#include "handmade_math.h"
+#include "math/handmade_math.h"
 
 class Renderer;
 

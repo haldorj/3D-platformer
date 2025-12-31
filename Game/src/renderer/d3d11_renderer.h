@@ -20,7 +20,8 @@ struct CbPerFrame
 class D3D11Renderer final : public Renderer
 {
 public:
-    void InitRenderer(int gameHeight, int gameWidth, Application& app) override;
+    void InitRenderer(int gameHeight, int gameWidth, 
+        Platform& platform, GameState& gameState) override;
 
 	void InitMainRenderingPipeline() override;
 	void InitFontRenderingPipeline() override;

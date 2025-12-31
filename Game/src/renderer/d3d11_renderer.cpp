@@ -3,6 +3,72 @@
 #include "renderer/d3d11_renderer.h"
 #include "platform/platform.h"
 #include "game.h"
+#include <stb_image.h>
+
+static Texture CreateErrorTexture()
+{
+    Texture texture{};
+
+    constexpr size_t width = 256;
+    constexpr size_t height = 256;
+    auto pixels = static_cast<unsigned char*>(malloc(width * height * 4));
+
+    if (!pixels)
+    {
+        return texture;
+    }
+
+    // Checkerboard pattern
+    for (auto y = 0; y < height; ++y)
+    {
+        for (auto x = 0; x < width; ++x)
+        {
+            const int index = (y * width + x) * 4;
+            constexpr int checkSize = 16;
+
+            if (x / checkSize % 2 == y / checkSize % 2)
+            {
+                pixels[index + 0] = 255; // R
+                pixels[index + 1] = 0;   // G
+                pixels[index + 2] = 255; // B
+                pixels[index + 3] = 255; // A
+            }
+            else
+            {
+                pixels[index + 0] = 0;   // R
+                pixels[index + 1] = 0;   // G
+                pixels[index + 2] = 0;   // B
+                pixels[index + 3] = 255; // A
+            }
+        }
+    }
+
+    texture.Width = width;
+    texture.Height = height;
+    texture.Pixels = std::vector<unsigned char>(pixels, pixels + (width * height * 4));
+
+    free(pixels);
+
+    return texture;
+}
+
+
+static Texture LoadTexture(const std::string& path)
+{
+    int width, height, channels;
+    unsigned char* data = stbi_load(path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+
+    if (!data)
+    {
+        return CreateErrorTexture();
+    }
+
+    Texture texture;
+    texture.Width = width;
+    texture.Height = height;
+    texture.Pixels = std::vector<unsigned char>(data, data + (width * height * 4));
+    return texture;
+}
 
 static void ExitIfFailed(const HRESULT hr)
 {
@@ -287,7 +353,7 @@ void D3D11Renderer::InitFontRenderingPipeline()
         FontVsBuffer->GetBufferSize(), &FontVertLayout));
 }
 
-void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Application& app)
+void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform& platform, GameState& gameState)
 {
     //////////////////////////////////
     // Init D3D11                   //
@@ -317,7 +383,7 @@ void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Application& app
     swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
     swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
 
-    void* window = app._Platform->PlatformGetWindowHandle();
+    void* window = platform.PlatformGetWindowHandle();
     HWND hwnd = static_cast<HWND>(window);
 
     assert(hwnd && "HWND is null!");
@@ -384,7 +450,7 @@ void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Application& app
     ExitIfFailed(D3d11Device->CreateBuffer(&constantBufferDesc, nullptr, &CbPerObjectBuffer));
 
     // Texture Loading Test
-    Texture tex = app.LoadTexture("assets/textures/cat.jpg");
+    Texture tex = LoadTexture("assets/textures/cat.jpg");
     CubesTextureView = static_cast<ID3D11ShaderResourceView*>(CreateTextureView(tex));
 
     //stbi_image_free(tex.Pixels.data());
@@ -462,7 +528,7 @@ void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Application& app
 
     ExitIfFailed(D3d11Device->CreateBuffer(&constantBufferDesc, nullptr, &cbPerFrameBuffer));
 
-    ConstBufferPerFrame.Light = app._GameState.GlobalDirectionalLight;
+    ConstBufferPerFrame.Light = gameState.GlobalDirectionalLight;
 
     D3d11DeviceContext->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &ConstBufferPerFrame, 0, 0);
     D3d11DeviceContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);

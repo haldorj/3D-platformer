@@ -1,8 +1,8 @@
 #pragma once
 
-#include "application.h"
+#include "game.h"
 
-class Application;
+class Platform;
 
 class Renderer
 {
@@ -10,7 +10,7 @@ public:
 	virtual void* CreateTextureView(const Texture& texture) = 0;
 
 	virtual void InitRenderer(int gameHeight, int gameWidth,
-		Application& app) = 0;
+		Platform& platform, GameState& gameState) = 0;
 
 	virtual void InitMainRenderingPipeline() = 0;
 
