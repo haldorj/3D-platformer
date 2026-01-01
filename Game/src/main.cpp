@@ -6,11 +6,14 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
+#ifdef _WIN32
 #include "platform/win32_platform.h"
 #include "renderer/d3d11_renderer.h"
+#endif
 
 void Init();
 void Run();
+void HandleInput();
 void InitGame(int gameResolutionWidth, int gameResolutionHeight);
 void UpdateGame(const float dt);
 
@@ -19,10 +22,10 @@ void UpdateGame(const float dt);
 [[nodiscard]] Texture LoadTexture(const std::string& path);
 [[nodiscard]] std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path);
 
-GameState _GameState;
+static GameState _GameState;
 
-std::unique_ptr<Platform> _Platform;
-std::unique_ptr<Renderer> _Renderer;
+static std::unique_ptr<Platform> _Platform;
+static std::unique_ptr<Renderer> _Renderer;
 
 static uint32_t WindowWidth = 1280;
 static uint32_t WindowHeight = 720;
@@ -36,6 +39,9 @@ static bool Running;
 
 void Init()
 {
+    GameResolutionWidth = min(WindowWidth, GameResolutionWidth);
+	GameResolutionHeight = min(WindowHeight, GameResolutionHeight);
+
 #ifdef _WIN32
     _Platform = std::make_unique<Win32Platform>();
     _Renderer = std::make_unique<D3D11Renderer>();
@@ -43,6 +49,7 @@ void Init()
     assert(_Platform && _Renderer);
 
     _Platform->PlatformInitWindow(WindowWidth, WindowHeight, L"Window");
+	_Platform->PlatformInitInput();
 
     _Renderer->InitRenderer(
         GameResolutionHeight, GameResolutionWidth, *_Platform, _GameState);
@@ -76,6 +83,10 @@ void Run()
         const std::string fpsStr = std::move(std::format("FPS: {}", FPS));
 
         _Platform->PlatformUpdateWindow(Running);
+        HandleInput();
+		_Platform->PlatformUpdateInput();
+
+		V2 mousePos = _Platform->GetMousePosition();
 
         UpdateGame(deltaTime);
 
@@ -117,6 +128,45 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight)
     _GameState.GlobalDirectionalLight.Diffuse = { .X = 0.8f, .Y = 0.8f, .Z = 0.8f };
 }
 
+void HandleInput()
+{
+    
+    if (_Platform->IsKeyDown(KeyCode::KEY_ESCAPE))
+    {
+		Running = false;
+    }
+    if (_Platform->IsKeyDown(KeyCode::KEY_W))
+    {
+        _GameState.CamPosition.Z += 0.1f;
+		_GameState.CamTarget.Z += 0.1f;
+    }
+    if (_Platform->IsKeyDown(KeyCode::KEY_S))
+    {
+        _GameState.CamPosition.Z -= 0.1f;
+		_GameState.CamTarget.Z -= 0.1f;
+	}
+    if (_Platform->IsKeyDown(KeyCode::KEY_A))
+    {
+        _GameState.CamPosition.X -= 0.1f;
+		_GameState.CamTarget.X -= 0.1f;
+	}
+    if (_Platform->IsKeyDown(KeyCode::KEY_D))
+    {
+        _GameState.CamPosition.X += 0.1f;
+		_GameState.CamTarget.X += 0.1f;
+    }
+    if (_Platform->IsKeyDown(KeyCode::KEY_SPACE))
+    {
+        _GameState.CamPosition.Y += 0.1f;
+		_GameState.CamTarget.Y += 0.1f;
+    }
+    if (_Platform->IsKeyDown(KeyCode::KEY_LEFT_CTRL))
+    {
+        _GameState.CamPosition.Y -= 0.1f;
+		_GameState.CamTarget.Y -= 0.1f;
+    }
+}
+
 void UpdateGame(const float dt)
 {
     //Keep the cubes rotating
@@ -147,6 +197,9 @@ void UpdateGame(const float dt)
 
     //Set cube2's world space matrix
     _GameState.Cube2World = _GameState.Rotation * _GameState.Scale;
+
+    _GameState.CamView = MatrixLookAt(
+        _GameState.CamPosition, _GameState.CamTarget, _GameState.CamUp);
 }
 
 std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path)
@@ -214,7 +267,6 @@ std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path)
 
     return result;
 }
-
 
 std::string ReadEntireFile(const std::string& path)
 {

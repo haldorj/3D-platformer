@@ -104,6 +104,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="src\game.h" />
+    <ClInclude Include="src\input\input.h" />
+    <ClInclude Include="src\input\key_codes.h" />
     <ClInclude Include="src\math\handmade_math.h" />
     <ClInclude Include="src\pch.h" />
     <ClInclude Include="src\platform\platform.h" />

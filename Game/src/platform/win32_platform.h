@@ -9,4 +9,13 @@ public:
 		const wchar_t* title) override;
 	void PlatformUpdateWindow(bool& running) override;
 	void* PlatformGetWindowHandle() override;
+
+	void PlatformInitInput() override;
+	void PlatformUpdateInput() override;
+
+	bool IsKeyDown(KeyCode key) override;
+	bool IsKeyPressed(KeyCode key) override;
+	bool IsKeyReleased(KeyCode key) override;
+
+	V2 GetMousePosition() override;
 };

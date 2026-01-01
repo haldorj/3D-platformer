@@ -1,0 +1,49 @@
+#include <cstdint>
+
+constexpr size_t KEY_COUNT = 255;
+
+enum class KeyCode : uint8_t
+{
+	KEY_UNKNOWN = 0,
+
+	MOUSE_BUTTON_LEFT = 0,
+	MOUSE_BUTTON_RIGHT = 1,
+	MOUSE_BUTTON_MIDDLE = 2,
+	MOUSE_BUTTON_4 = 3,
+	MOUSE_BUTTON_5 = 4,
+
+	// Letters
+	KEY_A, KEY_B, KEY_C, KEY_D, KEY_E, KEY_F, KEY_G,
+	KEY_H, KEY_I, KEY_J, KEY_K, KEY_L, KEY_M, KEY_N,
+	KEY_O, KEY_P, KEY_Q, KEY_R, KEY_S, KEY_T, KEY_U,
+	KEY_V, KEY_W, KEY_X, KEY_Y, KEY_Z,
+
+	// Numbers
+	KEY_0, KEY_1, KEY_2, KEY_3, KEY_4,
+	KEY_5, KEY_6, KEY_7, KEY_8, KEY_9,
+
+	// Function Keys
+	KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5,
+	KEY_F6, KEY_F7, KEY_F8, KEY_F9, KEY_F10,
+
+	// Arrow Keys
+	KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN,
+
+	// Special Keys
+	KEY_SPACE,
+	KEY_ESCAPE,
+	KEY_ENTER,
+	KEY_TAB,
+	KEY_BACKSPACE,
+	KEY_CAPS_LOCK,
+
+	// Modifier Keys
+	KEY_LEFT_SHIFT,
+	KEY_RIGHT_SHIFT,
+	KEY_LEFT_CTRL,
+	KEY_RIGHT_CTRL,
+	KEY_LEFT_ALT,
+	KEY_RIGHT_ALT,
+
+	KEY_COUNT = KEY_COUNT
+};

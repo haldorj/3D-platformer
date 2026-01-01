@@ -4,6 +4,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <array>
 #include <cstdint>
 #include <print>
 #include <format>
@@ -19,6 +20,7 @@
 #ifdef _WIN32
 // Windows specific includes
 #include <windows.h>
+#include <windowsx.h>
 
 #include <dxgi1_6.h>
 #include <d3d11.h>

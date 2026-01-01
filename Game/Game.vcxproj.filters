@@ -24,6 +24,8 @@
     <ClInclude Include="src\renderer\renderer.h">
       <Filter>renderer</Filter>
     </ClInclude>
+    <ClInclude Include="src\input\input.h" />
+    <ClInclude Include="src\input\key_codes.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
