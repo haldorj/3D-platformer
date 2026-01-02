@@ -22,6 +22,13 @@ struct M4
 	float M[4][4] = { 0 };
 };
 
+inline float DegreesToRadians(float degrees)
+{
+	// 3.14159265359f / 180.0f = 0.01745329252f
+
+	return degrees * (0.01745329251f);
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //								VECTOR 2									//
 //////////////////////////////////////////////////////////////////////////////
@@ -269,7 +276,7 @@ inline M4 MatrixIdentity()
 
 inline M4 MatrixLookAt(const V3& eye, const V3& at, const V3& up)
 {
-	const V3 zaxis = Normalize(at - eye);					// The cameras "forward" vector.
+	const V3 zaxis = Normalize(at - eye);				// The cameras "forward" vector.
 	const V3 xaxis = Normalize(Cross(up, zaxis));		// The cameras "right" vector.
 	const V3 yaxis = Cross(zaxis, xaxis);				// The cameras "up" vector.
 	M4 viewMatrix = {};

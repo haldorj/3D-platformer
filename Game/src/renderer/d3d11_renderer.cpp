@@ -569,8 +569,8 @@ void D3D11Renderer::RenderScene(GameState& gameState)
 
     CbPerObj = {};
 
-    CbPerObj.Projection = gameState.CamProjection;
-    CbPerObj.View = gameState.CamView;
+    CbPerObj.Projection = gameState.MainCamera.Projection;
+    CbPerObj.View = gameState.MainCamera.View;
     CbPerObj.World = gameState.Cube1World;
 
     D3d11DeviceContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
@@ -581,8 +581,8 @@ void D3D11Renderer::RenderScene(GameState& gameState)
     //Draw the first cube
     D3d11DeviceContext->DrawIndexed(36, 0, 0);
 
-    CbPerObj.Projection = gameState.CamProjection;
-    CbPerObj.View = gameState.CamView;
+    CbPerObj.Projection = gameState.MainCamera.Projection;
+    CbPerObj.View = gameState.MainCamera.View;
     CbPerObj.World = gameState.Cube2World;
 
     D3d11DeviceContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);

@@ -20,4 +20,8 @@ public:
 	virtual bool IsKeyReleased(KeyCode key) = 0;
 
 	virtual V2 GetMousePosition() = 0;
+	virtual V2 GetMouseDelta() = 0;
+
+	virtual void PlatformShowCursor(const bool show) = 0;
+	virtual void PlatformConfineCursorToWindow(const bool confine) = 0;
 };

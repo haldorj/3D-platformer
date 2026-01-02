@@ -1,6 +1,6 @@
 #include <cstdint>
 
-constexpr size_t KEY_COUNT = 255;
+inline constexpr size_t KEY_COUNT = 255;
 
 enum class KeyCode : uint8_t
 {

@@ -1,6 +1,6 @@
-workspace "Game"
+workspace "game"
 	architecture "x64"
-	startproject "Game"
+	startproject "game"
 
 	configurations
 	{
@@ -12,16 +12,17 @@ outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 debugdir "%{wks.location}"
 
 IncludeDir = {}
-IncludeDir["stb"] = "Game/vendor/stb"
+IncludeDir["stb"] = "game/vendor/stb"
 
-project "Game"
-	location "Game"
+project "game"
+	location "game"
 	kind "ConsoleApp"
 	language "C++"
 	cppdialect "C++latest"
 	staticruntime "on"
 
 	warnings "Extra"
+	-- 4100: unused funtion parameter
 	disablewarnings {"4100"}
 	flags { "FatalWarnings" }
 
@@ -29,7 +30,7 @@ project "Game"
 	objdir ("bin-int/" .. outputdir .. "/%{prj.name}")
 
 	pchheader "pch.h"
-	pchsource "Game/src/pch.cpp"
+	pchsource "game/src/pch.cpp"
 
 	files
 	{

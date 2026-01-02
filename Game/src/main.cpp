@@ -13,8 +13,9 @@
 
 void Init();
 void Run();
-void HandleInput();
+void Move(float dt);
 void InitGame(int gameResolutionWidth, int gameResolutionHeight);
+void UpdateCamera(const float dt);
 void UpdateGame(const float dt);
 
 [[nodiscard]] std::string ReadEntireFile(const std::string& path);
@@ -24,23 +25,28 @@ void UpdateGame(const float dt);
 
 static GameState _GameState;
 
-static std::unique_ptr<Platform> _Platform;
-static std::unique_ptr<Renderer> _Renderer;
+constinit std::unique_ptr<Platform> _Platform;
+constinit std::unique_ptr<Renderer> _Renderer;
 
-static uint32_t WindowWidth = 1280;
-static uint32_t WindowHeight = 720;
+constinit uint32_t _WindowWidth = 1280;
+constinit uint32_t _WindowHeight = 720;
 
-static uint32_t GameResolutionWidth = 1280;
-static uint32_t GameResolutionHeight = 720;
+constinit uint32_t _GameResolutionWidth = 1280;
+constinit uint32_t _GameResolutionHeight = 720;
 
-static bool VSync{ true };
-static int FPS = 0;
-static bool Running;
+constinit int _FPS{};
+constinit bool _VSync{ true };
+constinit bool _Running{};
+constinit bool _EditMode{};
+constinit bool _ShowCursor{ true };
+
+static float pitch = 0.0f;
+static float yaw = 180.0f;
 
 void Init()
 {
-    GameResolutionWidth = min(WindowWidth, GameResolutionWidth);
-	GameResolutionHeight = min(WindowHeight, GameResolutionHeight);
+    _GameResolutionWidth = min(_WindowWidth, _GameResolutionWidth);
+	_GameResolutionHeight = min(_WindowHeight, _GameResolutionHeight);
 
 #ifdef _WIN32
     _Platform = std::make_unique<Win32Platform>();
@@ -48,21 +54,21 @@ void Init()
 #endif
     assert(_Platform && _Renderer);
 
-    _Platform->PlatformInitWindow(WindowWidth, WindowHeight, L"Window");
+    _Platform->PlatformInitWindow(_WindowWidth, _WindowHeight, L"Window");
 	_Platform->PlatformInitInput();
 
     _Renderer->InitRenderer(
-        GameResolutionHeight, GameResolutionWidth, *_Platform, _GameState);
+        _GameResolutionHeight, _GameResolutionWidth, *_Platform, _GameState);
 
-    InitGame(GameResolutionWidth, GameResolutionHeight);
+    InitGame(_GameResolutionWidth, _GameResolutionHeight);
 }
 
 void Run()
 {
-    Running = true;
+    _Running = true;
     auto previousTime = std::chrono::steady_clock::now();
 
-    while (Running)
+    while (_Running)
     {
         static double fpsTimer{};
         static int fpsFrameCount{};
@@ -73,31 +79,29 @@ void Run()
 
         if (fpsTimer >= 1.0)
         {
-            FPS = static_cast<int>(fpsFrameCount / fpsTimer);
+            _FPS = static_cast<int>(fpsFrameCount / fpsTimer);
             fpsFrameCount = 0;
             fpsTimer = 0.0;
         }
 
         V3 textColor = { 1.0f, 1.0f, 1.0f };
         float textScale = 0.75f;
-        const std::string fpsStr = std::move(std::format("FPS: {}", FPS));
+        const std::string fpsStr = std::move(std::format("FPS: {}", _FPS));
 
-        _Platform->PlatformUpdateWindow(Running);
-        HandleInput();
+        _Platform->PlatformUpdateWindow(_Running);
 		_Platform->PlatformUpdateInput();
 
-		V2 mousePos = _Platform->GetMousePosition();
-
+        Move(deltaTime);
         UpdateGame(deltaTime);
 
         _Renderer->RenderScene(_GameState);
         _Renderer->RenderText(_GameState,
-            GameResolutionWidth, GameResolutionHeight,
+            _GameResolutionWidth, _GameResolutionHeight,
             fpsStr, 0, 0, textScale, textColor);
         _Renderer->RenderText(_GameState,
-            GameResolutionWidth, GameResolutionHeight,
+            _GameResolutionWidth, _GameResolutionHeight,
             "www123", 0, 21, 0.4f, textColor);
-        _Renderer->PresentSwapChain(VSync);
+        _Renderer->PresentSwapChain(_VSync);
 
         auto currentTime = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed = currentTime - previousTime;
@@ -109,17 +113,26 @@ void Run()
 void InitGame(int gameResolutionWidth, int gameResolutionHeight)
 {
     //Camera information
-    _GameState.CamPosition = { 0.0f, 3.0f, -8.0f };
-    _GameState.CamTarget = { 0.0f, 0.0f, 0.0f };
-    _GameState.CamUp = { 0.0f, 1.0f, 0.0f };
+    _GameState.MainCamera.Position = { 0.0f, 3.0f, -8.0f };
+
+    V3 target = { 0.0f, 0.0f, 0.0f };
+	V3 direction = Normalize(target - _GameState.MainCamera.Position);
+
+    _GameState.MainCamera.Direction = direction;
+    _GameState.MainCamera.Up = { 0.0f, 1.0f, 0.0f };
 
     //Set the View matrix
-    _GameState.CamView = MatrixLookAt(
-        _GameState.CamPosition, _GameState.CamTarget, _GameState.CamUp);
+    _GameState.MainCamera.View = MatrixLookAt(
+        _GameState.MainCamera.Position, 
+        target - _GameState.MainCamera.Position,
+        _GameState.MainCamera.Up);
 
     //Set the Projection matrix
-    _GameState.CamProjection = MatrixPerspective(
-        0.4f * 3.14f, static_cast<float>(gameResolutionWidth) / gameResolutionHeight, 1.0f, 1000.0f);
+	float nearPlane = 0.1f;
+	float farPlane = 1000.0f;
+    _GameState.MainCamera.Projection = MatrixPerspective(
+        0.4f * 3.14f, static_cast<float>(gameResolutionWidth) / gameResolutionHeight, nearPlane, farPlane);
+    
     auto fontGlyphs = LoadFontGlyphs("C:/Windows/Fonts/calibri.ttf");
     _GameState.LoadedFontGlyphs = std::move(fontGlyphs);
 
@@ -128,49 +141,112 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight)
     _GameState.GlobalDirectionalLight.Diffuse = { .X = 0.8f, .Y = 0.8f, .Z = 0.8f };
 }
 
-void HandleInput()
+void Move(float dt)
 {
-    
+    float moveSpeed = 5.0f * dt;
+
     if (_Platform->IsKeyDown(KeyCode::KEY_ESCAPE))
     {
-		Running = false;
+		_Running = false;
     }
     if (_Platform->IsKeyDown(KeyCode::KEY_W))
     {
-        _GameState.CamPosition.Z += 0.1f;
-		_GameState.CamTarget.Z += 0.1f;
+        _GameState.MainCamera.Position.Z += moveSpeed;
     }
     if (_Platform->IsKeyDown(KeyCode::KEY_S))
     {
-        _GameState.CamPosition.Z -= 0.1f;
-		_GameState.CamTarget.Z -= 0.1f;
+        _GameState.MainCamera.Position.Z -= moveSpeed;
 	}
     if (_Platform->IsKeyDown(KeyCode::KEY_A))
     {
-        _GameState.CamPosition.X -= 0.1f;
-		_GameState.CamTarget.X -= 0.1f;
+        _GameState.MainCamera.Position.X -= moveSpeed;
 	}
     if (_Platform->IsKeyDown(KeyCode::KEY_D))
     {
-        _GameState.CamPosition.X += 0.1f;
-		_GameState.CamTarget.X += 0.1f;
+        _GameState.MainCamera.Position.X += moveSpeed;
     }
     if (_Platform->IsKeyDown(KeyCode::KEY_SPACE))
     {
-        _GameState.CamPosition.Y += 0.1f;
-		_GameState.CamTarget.Y += 0.1f;
+        _GameState.MainCamera.Position.Y += moveSpeed;
     }
     if (_Platform->IsKeyDown(KeyCode::KEY_LEFT_CTRL))
     {
-        _GameState.CamPosition.Y -= 0.1f;
-		_GameState.CamTarget.Y -= 0.1f;
+        _GameState.MainCamera.Position.Y -= moveSpeed;
     }
+
+    if (_Platform->IsKeyPressed(KeyCode::KEY_F1))
+    {
+        _VSync = !_VSync;
+	}
+    if (_Platform->IsKeyPressed(KeyCode::KEY_F2))
+    {
+        _EditMode = !_EditMode;
+    }
+
+    if (_EditMode)
+    {
+        if (_ShowCursor)
+        {
+            _ShowCursor = false;
+			_Platform->PlatformConfineCursorToWindow(true);
+            _Platform->PlatformShowCursor(false);
+		}
+
+        // _Platform->CenterMousePosition();
+        UpdateCamera(dt);
+    }
+    else
+    {
+        if (!_ShowCursor)
+        {
+            _ShowCursor = true;
+            _Platform->PlatformConfineCursorToWindow(false);
+            _Platform->PlatformShowCursor(_ShowCursor);
+        }
+    }
+}
+
+void UpdateCamera(const float dt)
+{
+    V2 delta = _Platform->GetMouseDelta();
+    const float sensitivity = 1.0f;
+
+    // Adjust yaw/pitch
+    yaw -= delta.X * sensitivity;
+    pitch -= delta.Y * sensitivity;
+
+    // Clamp pitch
+    if (pitch > 89.0f)  pitch = 89.0f;
+    if (pitch < -89.0f) pitch = -89.0f;
+
+    // Wrap yaw
+    yaw = fmodf(yaw, 360.0f);
+    if (yaw < 0.0f) yaw += 360.0f;
+
+    // Convert to direction vector
+    V3 direction{};
+    direction.X = cosf(DegreesToRadians(yaw)) * cosf(DegreesToRadians(pitch));
+    direction.Y = sinf(DegreesToRadians(pitch));
+    direction.Z = sinf(DegreesToRadians(yaw)) * cosf(DegreesToRadians(pitch));
+    direction = Normalize(direction);
+
+    _GameState.MainCamera.Direction = direction;
+
+    // LookAt matrix
+    V3 target = _GameState.MainCamera.Position + direction;
+
+    _GameState.MainCamera.View = MatrixLookAt(
+        _GameState.MainCamera.Position,
+        target,
+        _GameState.MainCamera.Up
+    );
+
 }
 
 void UpdateGame(const float dt)
 {
     //Keep the cubes rotating
-    _GameState.Rot += .5f * dt;
+    _GameState.Rot += 0.0f * dt;  //.5f * dt;
     if (_GameState.Rot > 6.28f)
         _GameState.Rot = 0.0f;
 
@@ -197,9 +273,6 @@ void UpdateGame(const float dt)
 
     //Set cube2's world space matrix
     _GameState.Cube2World = _GameState.Rotation * _GameState.Scale;
-
-    _GameState.CamView = MatrixLookAt(
-        _GameState.CamPosition, _GameState.CamTarget, _GameState.CamUp);
 }
 
 std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path)

@@ -2,8 +2,6 @@
 
 #include "math/handmade_math.h"
 
-class Renderer;
-
 struct Vertex
 {
     V3 Position{};
@@ -34,24 +32,42 @@ struct FontGlyph
     float Advance{};
 };
 
+struct Camera
+{
+    M4 View{};
+    M4 Projection{};
+
+    V3 Position{};
+    V3 Direction{};
+    V3 Up{};
+};
+
+/*
+struct GameMemory
+{
+    uint64_t PermanentStorageSize;
+    uint64_t TransientStorageSize;
+    void* PermanentStorage; // Required to be cleared to zero at startup
+    void* TransientStorage; // Required to be cleared to zero at startup
+
+    bool IsInitialized;
+};
+*/
+
 struct GameState
 {
     std::unordered_map<char, FontGlyph> LoadedFontGlyphs{};
+
+    Camera MainCamera{};
 
     DirectionalLight GlobalDirectionalLight{};
 
     M4 Cube1World;
     M4 Cube2World;
-    M4 CamView;
-    M4 CamProjection;
 
     M4 Rotation;
     M4 Scale;
     M4 Translation;
-
-    V3 CamPosition;
-    V3 CamTarget;
-    V3 CamUp;
 
     float Rot = 0.01f;
 };

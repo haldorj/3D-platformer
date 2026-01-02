@@ -18,4 +18,8 @@ public:
 	bool IsKeyReleased(KeyCode key) override;
 
 	V2 GetMousePosition() override;
+	V2 GetMouseDelta() override;
+	
+	void PlatformShowCursor(const bool show) override;
+	void PlatformConfineCursorToWindow(const bool confine) override;
 };

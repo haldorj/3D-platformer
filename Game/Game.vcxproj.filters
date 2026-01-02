@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <Filter Include="input">
+      <UniqueIdentifier>{B54AA90F-215F-D1C0-EAE0-742056B4CDF1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="math">
+      <UniqueIdentifier>{CF809A7C-BBB7-9B0D-64A4-811050BA170F}</UniqueIdentifier>
+    </Filter>
     <Filter Include="platform">
       <UniqueIdentifier>{4A63C33C-3630-1E48-5F49-0CF04B7553D6}</UniqueIdentifier>
     </Filter>
@@ -10,7 +16,15 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\game.h" />
-    <ClInclude Include="src\math\handmade_math.h" />
+    <ClInclude Include="src\input\input.h">
+      <Filter>input</Filter>
+    </ClInclude>
+    <ClInclude Include="src\input\key_codes.h">
+      <Filter>input</Filter>
+    </ClInclude>
+    <ClInclude Include="src\math\handmade_math.h">
+      <Filter>math</Filter>
+    </ClInclude>
     <ClInclude Include="src\pch.h" />
     <ClInclude Include="src\platform\platform.h">
       <Filter>platform</Filter>
@@ -24,8 +38,6 @@
     <ClInclude Include="src\renderer\renderer.h">
       <Filter>renderer</Filter>
     </ClInclude>
-    <ClInclude Include="src\input\input.h" />
-    <ClInclude Include="src\input\key_codes.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
