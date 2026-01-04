@@ -15,7 +15,7 @@ static void ExitIfFailed(const HRESULT hr)
         WideCharToMultiByte(CP_ACP, 0, errMsg, -1, buffer, sizeof(buffer), nullptr, nullptr);
 
         std::print("HRESULT failed with error: {}", buffer);
-        assert(false);
+        Assert(false);
     }
 }
 
@@ -25,7 +25,7 @@ static void VerifyShader(const HRESULT hr, ID3D10Blob* errorMessages)
     {
         auto errorMsg = static_cast<const char*>(errorMessages->GetBufferPointer());
         std::print("Shader Compilation Error: {}\n", errorMsg);
-        assert(false);
+        Assert(false);
     }
 }
 
@@ -265,7 +265,7 @@ void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform& platfo
     void* window = platform.PlatformGetWindowHandle();
     HWND hwnd = static_cast<HWND>(window);
 
-    assert(hwnd && "HWND is null!");
+    Assert(hwnd && "HWND is null!");
 
     factory2->CreateSwapChainForHwnd(D3d11Device.Get(), hwnd, &swapChainDesc, nullptr, nullptr, &SwapChain);
 
@@ -521,7 +521,7 @@ void D3D11Renderer::PresentSwapChain(bool& vSync)
 
 #ifdef _DEBUG
     ExitIfFailed(SwapChain->Present1(vSync, PresentFlags, &presentParams));
-#elif
+#else
     SwapChain->Present1(vSync, PresentFlags, &presentParams);
 #endif
     

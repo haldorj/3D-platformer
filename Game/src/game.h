@@ -51,6 +51,9 @@ struct Camera
     V3 Position{};
     V3 Direction{};
     V3 Up{};
+
+    float Pitch{};
+    float Yaw{};
 };
 
 /*

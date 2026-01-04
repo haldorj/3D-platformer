@@ -198,7 +198,7 @@ void Win32Platform::PlatformInitWindow(int windowWidth, int windowHeight, const 
         NULL        // Additional application data
     );
 
-    assert(_Hwnd);
+    Assert(_Hwnd);
 
     ShowWindow(_Hwnd, nCmdShow);
 }
@@ -228,7 +228,7 @@ void Win32Platform::PlatformInitInput()
     rid.usUsage = 0x02;
     rid.dwFlags = RIDEV_NOLEGACY;
     rid.hwndTarget = _Hwnd;
-    assert(RegisterRawInputDevices(&rid, 1, sizeof(rid)));
+    Assert(RegisterRawInputDevices(&rid, 1, sizeof(rid)));
     SetProcessDPIAware();
 
     _KeyMap[KeyCode::MOUSE_BUTTON_LEFT] = VK_LBUTTON;
@@ -320,19 +320,19 @@ void Win32Platform::PlatformUpdateInput()
 
 bool Win32Platform::IsKeyDown(KeyCode key)
 {
-    assert(static_cast<size_t>(key) < _Input.KeyStates.KeysDown.size());
+    Assert(static_cast<size_t>(key) < _Input.KeyStates.KeysDown.size());
 	return _Input.KeyStates.KeysDown[_KeyMap[key]];
 }
 
 bool Win32Platform::IsKeyPressed(KeyCode key)
 {
-    assert(static_cast<size_t>(key) < _Input.KeyStates.KeysDown.size());
+    Assert(static_cast<size_t>(key) < _Input.KeyStates.KeysDown.size());
 	return _Input.KeyStates.KeysPressed[_KeyMap[key]];
 }
 
 bool Win32Platform::IsKeyReleased(KeyCode key)
 {
-    assert(static_cast<size_t>(key) < _Input.KeyStates.KeysDown.size());
+    Assert(static_cast<size_t>(key) < _Input.KeyStates.KeysDown.size());
 	return _Input.KeyStates.KeysReleased[_KeyMap[key]];
 }
 

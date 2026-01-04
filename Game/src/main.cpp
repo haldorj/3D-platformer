@@ -16,12 +16,12 @@ void Run();
 void Move(float dt);
 void InitGame(int gameResolutionWidth, int gameResolutionHeight);
 void UploadMeshesToGPU();
-void UpdateCamera(const float dt);
 void UpdateGame(const float dt);
+void UpdateCamera(const float dt);
 
 [[nodiscard]] std::string ReadEntireFile(const std::string& path);
 [[nodiscard]] Texture CreateErrorTexture();
-[[nodiscard]] Texture LoadTexture(const std::string& path);
+[[nodiscard]] Texture LoadTextureFromFile(const std::string& path);
 [[nodiscard]] std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path, Renderer* renderer);
 
 static GameState _GameState;
@@ -32,28 +32,26 @@ constinit std::unique_ptr<Renderer> _Renderer;
 constinit uint32_t _WindowWidth = 1280;
 constinit uint32_t _WindowHeight = 720;
 
-constinit uint32_t _GameResolutionWidth = 1280;
+uint32_t _GameResolutionWidth = 1280;
 constinit uint32_t _GameResolutionHeight = 720;
+
+constinit bool _Running{};
 
 constinit int _FPS{};
 constinit bool _VSync{ true };
-constinit bool _Running{};
 constinit bool _EditMode{};
 constinit bool _ShowCursor{ true };
 
-constinit float pitch = 0.0f;
-constinit float yaw = 90.0f;
-
 void Init()
 {
-    _GameResolutionWidth = min(_WindowWidth, _GameResolutionWidth);
-	_GameResolutionHeight = min(_WindowHeight, _GameResolutionHeight);
+    _GameResolutionWidth = std::min<uint32_t>(_WindowWidth, _GameResolutionWidth);
+	_GameResolutionHeight = std::min<uint32_t>(_WindowHeight, _GameResolutionHeight);
 
 #ifdef _WIN32
     _Platform = std::make_unique<Win32Platform>();
     _Renderer = std::make_unique<D3D11Renderer>();
 #endif
-    assert(_Platform && _Renderer);
+    Assert(_Platform && _Renderer);
 
     _Platform->PlatformInitWindow(_WindowWidth, _WindowHeight, L"Window");
 	_Platform->PlatformInitInput();
@@ -96,12 +94,17 @@ void Run()
         UpdateGame(deltaTime);
 
         _Renderer->RenderScene(_GameState);
+
         _Renderer->RenderText(_GameState,
             _GameResolutionWidth, _GameResolutionHeight,
             fpsStr, 0, 0, textScale, textColor);
-        _Renderer->RenderText(_GameState,
-            _GameResolutionWidth, _GameResolutionHeight,
-            "www123", 0, 21, 0.4f, textColor);
+
+        if (_EditMode)
+        {
+            _Renderer->RenderText(_GameState,
+                _GameResolutionWidth, _GameResolutionHeight,
+                "Edit mode", 0, 21, textScale, { 1.0f, 0.0f, 0.0f });
+        }
 
         _Renderer->PresentSwapChain(_VSync);
 
@@ -123,6 +126,9 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight)
     _GameState.MainCamera.Direction = direction;
     _GameState.MainCamera.Up = { 0.0f, 1.0f, 0.0f };
 
+    _GameState.MainCamera.Pitch = asinf(direction.Y);
+    _GameState.MainCamera.Yaw = 90.0f;
+
     //Set the View matrix
     _GameState.MainCamera.View = MatrixLookAt(
         _GameState.MainCamera.Position, 
@@ -143,6 +149,23 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight)
     _GameState.GlobalDirectionalLight.Diffuse = { .X = 0.8f, .Y = 0.8f, .Z = 0.8f };
 
     UploadMeshesToGPU();
+}
+
+Texture LoadTextureFromFile(const std::string& path)
+{
+    int width, height, channels;
+    unsigned char* data = stbi_load(path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+
+    if (!data)
+    {
+        return CreateErrorTexture();
+    }
+
+    Texture texture;
+    texture.Width = width;
+    texture.Height = height;
+    texture.Pixels = std::vector<unsigned char>(data, data + (width * height * 4));
+    return texture;
 }
 
 Texture CreateErrorTexture()
@@ -192,26 +215,9 @@ Texture CreateErrorTexture()
     return texture;
 }
 
-Texture LoadTexture(const std::string& path)
-{
-    int width, height, channels;
-    unsigned char* data = stbi_load(path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
-
-    if (!data)
-    {
-        return CreateErrorTexture();
-    }
-
-    Texture texture;
-    texture.Width = width;
-    texture.Height = height;
-    texture.Pixels = std::vector<unsigned char>(data, data + (width * height * 4));
-    return texture;
-}
-
 void UploadMeshesToGPU()
 {
-    assert(_Renderer);
+    Assert(_Renderer);
 
     //Create the vertex buffer (cube)
     std::vector<Vertex> vertices =
@@ -276,7 +282,7 @@ void UploadMeshesToGPU()
     };
 
 	Mesh cubeMesh{};
-    Texture tex = LoadTexture("assets/textures/cat.jpg");
+    Texture tex = LoadTextureFromFile("assets/textures/crate.jpg");
 
     cubeMesh.Vertices = std::move(vertices);
     cubeMesh.Indices = std::move(std::vector<uint32_t>(std::begin(indices), std::end(indices)));
@@ -364,35 +370,40 @@ void UpdateCamera(const float dt)
     V2 delta = _Platform->GetMouseDelta();
     const float sensitivity = 0.1f;
 
+	Camera& c = _GameState.MainCamera;
+
     // Adjust yaw/pitch
-    yaw -= delta.X * sensitivity;
-    pitch -= delta.Y * sensitivity;
+    c.Yaw -= delta.X * sensitivity;
+    c.Pitch -= delta.Y * sensitivity;
 
     // Clamp pitch
-    if (pitch > 89.0f)  pitch = 89.0f;
-    if (pitch < -89.0f) pitch = -89.0f;
+    if (c.Pitch > 89.0f)
+        c.Pitch = 89.0f;
+    if (c.Pitch < -89.0f)
+        c.Pitch = -89.0f;
 
     // Wrap yaw
-    yaw = fmodf(yaw, 360.0f);
-    if (yaw < 0.0f) yaw += 360.0f;
+    c.Yaw = fmodf(c.Yaw, 360.0f);
+    if (c.Yaw < 0.0f) c.Yaw += 360.0f;
 
     // Convert to direction vector
     V3 direction{};
-    direction.X = cosf(DegreesToRadians(yaw)) * cosf(DegreesToRadians(pitch));
-    direction.Y = sinf(DegreesToRadians(pitch));
-    direction.Z = sinf(DegreesToRadians(yaw)) * cosf(DegreesToRadians(pitch));
+
+    direction.X = 
+        cosf(DegreesToRadians(c.Yaw)) * cosf(DegreesToRadians(c.Pitch));
+    direction.Y = 
+        sinf(DegreesToRadians(c.Pitch));
+    direction.Z = 
+        sinf(DegreesToRadians(c.Yaw)) * cosf(DegreesToRadians(c.Pitch));
+
     direction = Normalize(direction);
 
-    _GameState.MainCamera.Direction = direction;
+    c.Direction = direction;
 
     // LookAt matrix
-    V3 target = _GameState.MainCamera.Position + direction;
+    V3 target = c.Position + direction;
 
-    _GameState.MainCamera.View = MatrixLookAt(
-        _GameState.MainCamera.Position,
-        target,
-        _GameState.MainCamera.Up
-    );
+    c.View = MatrixLookAt(c.Position, target, c.Up);
 
 }
 
@@ -426,10 +437,10 @@ std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path, Rend
 {
     std::unordered_map<char, FontGlyph> result;
 
-    assert(renderer);
+    Assert(renderer);
 
     std::string ttfBuffer = ReadEntireFile(path);
-    assert(ttfBuffer.size()); // Ensure the font file was read successfully
+    Assert(ttfBuffer.size()); // Ensure the font file was read successfully
 
     const unsigned char* data = (unsigned char*)ttfBuffer.data();
 
