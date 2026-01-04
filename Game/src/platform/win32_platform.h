@@ -19,6 +19,7 @@ public:
 
 	V2 GetMousePosition() override;
 	V2 GetMouseDelta() override;
+	void SetMouseDelta(const V2& delta) override;
 	
 	void PlatformShowCursor(const bool show) override;
 	void PlatformConfineCursorToWindow(const bool confine) override;

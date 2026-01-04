@@ -25,6 +25,8 @@ public:
 
 	void InitMainRenderingPipeline() override;
 	void InitFontRenderingPipeline() override;
+
+    void UploadMeshesToGPU(Mesh& mesh) override;
 	void* CreateTextureView(const Texture& texture) override;
 
 	void RenderScene(GameState& gameState) override;
@@ -43,8 +45,6 @@ private:
     ID3D11DepthStencilView* DepthStencilView;
     ID3D11Texture2D* DepthStencilBuffer;
 
-    ID3D11Buffer* CubesIndexBuffer;
-    ID3D11Buffer* CubesVertBuffer;
     ID3D11VertexShader* VS;
     ID3D11PixelShader* PS;
     ID3D10Blob* VsBuffer;
@@ -65,7 +65,6 @@ private:
     ID3D10Blob* FontPsBuffer;
     ID3D11InputLayout* FontVertLayout;
 
-    ID3D11ShaderResourceView* CubesTextureView;
     ID3D11SamplerState* CubesTexSamplerState;
     ID3D11BlendState* Transparency;
     ID3D11RasterizerState* CounterClockwiseCullMode;

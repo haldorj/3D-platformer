@@ -15,13 +15,14 @@ void Init();
 void Run();
 void Move(float dt);
 void InitGame(int gameResolutionWidth, int gameResolutionHeight);
+void UploadMeshesToGPU();
 void UpdateCamera(const float dt);
 void UpdateGame(const float dt);
 
 [[nodiscard]] std::string ReadEntireFile(const std::string& path);
 [[nodiscard]] Texture CreateErrorTexture();
 [[nodiscard]] Texture LoadTexture(const std::string& path);
-[[nodiscard]] std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path);
+[[nodiscard]] std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path, Renderer* renderer);
 
 static GameState _GameState;
 
@@ -40,8 +41,8 @@ constinit bool _Running{};
 constinit bool _EditMode{};
 constinit bool _ShowCursor{ true };
 
-static float pitch = 0.0f;
-static float yaw = 180.0f;
+constinit float pitch = 0.0f;
+constinit float yaw = 90.0f;
 
 void Init()
 {
@@ -101,6 +102,7 @@ void Run()
         _Renderer->RenderText(_GameState,
             _GameResolutionWidth, _GameResolutionHeight,
             "www123", 0, 21, 0.4f, textColor);
+
         _Renderer->PresentSwapChain(_VSync);
 
         auto currentTime = std::chrono::steady_clock::now();
@@ -133,12 +135,163 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight)
     _GameState.MainCamera.Projection = MatrixPerspective(
         0.4f * 3.14f, static_cast<float>(gameResolutionWidth) / gameResolutionHeight, nearPlane, farPlane);
     
-    auto fontGlyphs = LoadFontGlyphs("C:/Windows/Fonts/calibri.ttf");
+    auto fontGlyphs = LoadFontGlyphs("C:/Windows/Fonts/calibri.ttf", _Renderer.get());
     _GameState.LoadedFontGlyphs = std::move(fontGlyphs);
 
     _GameState.GlobalDirectionalLight.Direction = { .X = -0.25f, .Y = -0.5f, .Z = -1.0f };
     _GameState.GlobalDirectionalLight.Ambient = { .X = 0.15f, .Y = 0.15f, .Z = 0.15f };
     _GameState.GlobalDirectionalLight.Diffuse = { .X = 0.8f, .Y = 0.8f, .Z = 0.8f };
+
+    UploadMeshesToGPU();
+}
+
+Texture CreateErrorTexture()
+{
+    Texture texture{};
+
+    constexpr size_t width = 256;
+    constexpr size_t height = 256;
+    auto pixels = static_cast<unsigned char*>(malloc(width * height * 4));
+
+    if (!pixels)
+    {
+        return texture;
+    }
+
+    // Checkerboard pattern
+    for (auto y = 0; y < height; ++y)
+    {
+        for (auto x = 0; x < width; ++x)
+        {
+            const int index = (y * width + x) * 4;
+            constexpr int checkSize = 16;
+
+            if (x / checkSize % 2 == y / checkSize % 2)
+            {
+                pixels[index + 0] = 255; // R
+                pixels[index + 1] = 0;   // G
+                pixels[index + 2] = 255; // B
+                pixels[index + 3] = 255; // A
+            }
+            else
+            {
+                pixels[index + 0] = 0;   // R
+                pixels[index + 1] = 0;   // G
+                pixels[index + 2] = 0;   // B
+                pixels[index + 3] = 255; // A
+            }
+        }
+    }
+
+    texture.Width = width;
+    texture.Height = height;
+    texture.Pixels = std::vector<unsigned char>(pixels, pixels + (width * height * 4));
+
+    free(pixels);
+
+    return texture;
+}
+
+Texture LoadTexture(const std::string& path)
+{
+    int width, height, channels;
+    unsigned char* data = stbi_load(path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+
+    if (!data)
+    {
+        return CreateErrorTexture();
+    }
+
+    Texture texture;
+    texture.Width = width;
+    texture.Height = height;
+    texture.Pixels = std::vector<unsigned char>(data, data + (width * height * 4));
+    return texture;
+}
+
+void UploadMeshesToGPU()
+{
+    assert(_Renderer);
+
+    //Create the vertex buffer (cube)
+    std::vector<Vertex> vertices =
+    {
+        // Front Face
+        { { -1.0f, -1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 1.0f } },
+        { { -1.0f,  1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
+        { {  1.0f,  1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 0.0f } },
+        { {  1.0f, -1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 1.0f } },
+
+        // Back Face
+        { { -1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 1.0f } },
+        { {  1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 1.0f } },
+        { {  1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
+        { { -1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 0.0f } },
+
+        // Top Face
+        { { -1.0f,  1.0f, -1.0f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 1.0f } },
+        { { -1.0f,  1.0f,  1.0f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
+        { {  1.0f,  1.0f,  1.0f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 0.0f } },
+        { {  1.0f,  1.0f, -1.0f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } },
+
+        // Bottom Face
+        { { -1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 1.0f } },
+        { {  1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 1.0f } },
+        { {  1.0f, -1.0f,  1.0f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
+        { { -1.0f, -1.0f,  1.0f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 0.0f } },
+
+        // Left Face
+        { { -1.0f, -1.0f,  1.0f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
+        { { -1.0f,  1.0f,  1.0f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+        { { -1.0f,  1.0f, -1.0f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 0.0f } },
+        { { -1.0f, -1.0f, -1.0f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
+
+        // Right Face
+        { {  1.0f, -1.0f, -1.0f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
+        { {  1.0f,  1.0f, -1.0f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
+        { {  1.0f,  1.0f,  1.0f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 0.0f } },
+        { {  1.0f, -1.0f,  1.0f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
+    };
+
+    uint32_t indices[] =
+    {
+        // Front Face
+        0,  1,  2,
+        0,  2,  3,
+        // Back Face
+        4,  5,  6,
+        4,  6,  7,
+        // Top Face
+        8,  9, 10,
+        8, 10, 11,
+        // Bottom Face
+        12, 13, 14,
+        12, 14, 15,
+        // Left Face
+        16, 17, 18,
+        16, 18, 19,
+        // Right Face
+        20, 21, 22,
+        20, 22, 23
+    };
+
+	Mesh cubeMesh{};
+    Texture tex = LoadTexture("assets/textures/cat.jpg");
+
+    cubeMesh.Vertices = std::move(vertices);
+    cubeMesh.Indices = std::move(std::vector<uint32_t>(std::begin(indices), std::end(indices)));
+    cubeMesh.Textures.push_back(std::move(tex));
+
+    // Texture Loading Test
+	_Renderer->UploadMeshesToGPU(cubeMesh);
+    stbi_image_free(tex.Pixels.data());
+
+	//Assign the cube mesh to all entities
+    for (int i = 0; i < MAX_ENTITIES; i++)
+    {
+        Entity& entity = _GameState.World.Entities[i];
+        entity.Mesh = cubeMesh;
+	}
 }
 
 void Move(float dt)
@@ -192,7 +345,6 @@ void Move(float dt)
             _Platform->PlatformShowCursor(false);
 		}
 
-        // _Platform->CenterMousePosition();
         UpdateCamera(dt);
     }
     else
@@ -204,12 +356,13 @@ void Move(float dt)
             _Platform->PlatformShowCursor(_ShowCursor);
         }
     }
+    _Platform->SetMouseDelta({ 0.0f, 0.0f });
 }
 
 void UpdateCamera(const float dt)
 {
     V2 delta = _Platform->GetMouseDelta();
-    const float sensitivity = 1.0f;
+    const float sensitivity = 0.1f;
 
     // Adjust yaw/pitch
     yaw -= delta.X * sensitivity;
@@ -246,40 +399,34 @@ void UpdateCamera(const float dt)
 void UpdateGame(const float dt)
 {
     //Keep the cubes rotating
-    _GameState.Rot += 0.0f * dt;  //.5f * dt;
+    _GameState.Rot += 0.5f * dt;
     if (_GameState.Rot > 6.28f)
         _GameState.Rot = 0.0f;
 
+    V3 lightDir = Normalize({ 0.5f, 1.0f, 0.5f });
     _GameState.GlobalDirectionalLight.Ambient = { 0.4f, 0.4f, 0.4f };
     _GameState.GlobalDirectionalLight.Color = { 1.0f, 1.0f, 1.0f };
-    V3 lightDir = Normalize({ 0.5f, 1.0f, 0.5f });
     _GameState.GlobalDirectionalLight.Direction = { lightDir.X, lightDir.Y, lightDir.Z, 0.0f };
 
-    //Reset cube1World
-    _GameState.Cube1World = MatrixIdentity();
+    for (int i = 0; i < MAX_ENTITIES; i++)
+    {
+		Entity& entity = _GameState.World.Entities[i];
 
-    _GameState.Rotation = MatrixRotationY(_GameState.Rot);
-    _GameState.Translation = MatrixTranslation(0.0f, 0.0f, 4.0f);
+		entity.WorldMatrix = MatrixIdentity();
 
-    //Set cube1's world space using the transformations
-    _GameState.Cube1World = _GameState.Translation * _GameState.Rotation;
+		M4 translation = MatrixTranslation(0.0f, 0.0f, i * 2.5f);
+		M4 rotation = MatrixRotationY(_GameState.Rot);
+		M4 scale = MatrixScaling(1.0f, 1.0f, 1.0f);
 
-    //Reset cube2World
-    _GameState.Cube2World = MatrixIdentity();
-
-    //Define cube2's world space matrix
-    _GameState.Rotation = MatrixRotationY(_GameState.Rot);
-    _GameState.Scale = MatrixScaling(1.3f, 1.3f, 1.3f);
-
-    //Set cube2's world space matrix
-    _GameState.Cube2World = _GameState.Rotation * _GameState.Scale;
+		entity.WorldMatrix = scale * translation * rotation;
+    }
 }
 
-std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path)
+std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path, Renderer* renderer)
 {
     std::unordered_map<char, FontGlyph> result;
 
-    assert(_Renderer);
+    assert(renderer);
 
     std::string ttfBuffer = ReadEntireFile(path);
     assert(ttfBuffer.size()); // Ensure the font file was read successfully
@@ -328,7 +475,7 @@ std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path)
         }
 
         FontGlyph glyph{};
-        glyph.TextureView = _Renderer.get()->CreateTextureView(fontTexture);
+        glyph.TextureView = renderer->CreateTextureView(fontTexture);
         glyph.Size = { .X = static_cast<float>(width), .Y = static_cast<float>(-height) };
         glyph.Bearing = { .X = static_cast<float>(xOffset), .Y = static_cast<float>(yOffset + pixelHeight) };
         glyph.Advance = scale * static_cast<float>(advance);

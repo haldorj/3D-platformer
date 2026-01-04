@@ -5,71 +5,6 @@
 #include "game.h"
 #include <stb_image.h>
 
-static Texture CreateErrorTexture()
-{
-    Texture texture{};
-
-    constexpr size_t width = 256;
-    constexpr size_t height = 256;
-    auto pixels = static_cast<unsigned char*>(malloc(width * height * 4));
-
-    if (!pixels)
-    {
-        return texture;
-    }
-
-    // Checkerboard pattern
-    for (auto y = 0; y < height; ++y)
-    {
-        for (auto x = 0; x < width; ++x)
-        {
-            const int index = (y * width + x) * 4;
-            constexpr int checkSize = 16;
-
-            if (x / checkSize % 2 == y / checkSize % 2)
-            {
-                pixels[index + 0] = 255; // R
-                pixels[index + 1] = 0;   // G
-                pixels[index + 2] = 255; // B
-                pixels[index + 3] = 255; // A
-            }
-            else
-            {
-                pixels[index + 0] = 0;   // R
-                pixels[index + 1] = 0;   // G
-                pixels[index + 2] = 0;   // B
-                pixels[index + 3] = 255; // A
-            }
-        }
-    }
-
-    texture.Width = width;
-    texture.Height = height;
-    texture.Pixels = std::vector<unsigned char>(pixels, pixels + (width * height * 4));
-
-    free(pixels);
-
-    return texture;
-}
-
-
-static Texture LoadTexture(const std::string& path)
-{
-    int width, height, channels;
-    unsigned char* data = stbi_load(path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
-
-    if (!data)
-    {
-        return CreateErrorTexture();
-    }
-
-    Texture texture;
-    texture.Width = width;
-    texture.Height = height;
-    texture.Pixels = std::vector<unsigned char>(data, data + (width * height * 4));
-    return texture;
-}
-
 static void ExitIfFailed(const HRESULT hr)
 {
     if (FAILED(hr))
@@ -92,6 +27,41 @@ static void VerifyShader(const HRESULT hr, ID3D10Blob* errorMessages)
         std::print("Shader Compilation Error: {}\n", errorMsg);
         assert(false);
     }
+}
+
+void D3D11Renderer::UploadMeshesToGPU(Mesh& mesh)
+{
+    // Create Vertex Buffer
+    D3D11_BUFFER_DESC vertexBufferDesc = {};
+    vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    vertexBufferDesc.ByteWidth = static_cast<UINT>(sizeof(Vertex) * mesh.Vertices.size());
+    vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    vertexBufferDesc.CPUAccessFlags = 0;
+    D3D11_SUBRESOURCE_DATA vertexData = {};
+    vertexData.pSysMem = mesh.Vertices.data();
+    ID3D11Buffer* vertexBuffer = nullptr;
+    ExitIfFailed(D3d11Device->CreateBuffer(&vertexBufferDesc, &vertexData, &vertexBuffer));
+
+    mesh.VertexBuffer = vertexBuffer;
+
+    // Create Index Buffer
+    D3D11_BUFFER_DESC indexBufferDesc = {};
+    indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    indexBufferDesc.ByteWidth = static_cast<UINT>(sizeof(uint32_t) * mesh.Indices.size());
+    indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    indexBufferDesc.CPUAccessFlags = 0;
+    D3D11_SUBRESOURCE_DATA indexData = {};
+    indexData.pSysMem = mesh.Indices.data();
+    ID3D11Buffer* indexBuffer = nullptr;
+    ExitIfFailed(D3d11Device->CreateBuffer(&indexBufferDesc, &indexData, &indexBuffer));
+
+	mesh.IndexBuffer = indexBuffer;
+
+    for (auto& texture : mesh.Textures)
+    {
+        void* textureView = CreateTextureView(texture);
+		mesh.TextureViews.emplace_back(textureView);
+	}
 }
 
 void* D3D11Renderer::CreateTextureView(const Texture& texture)
@@ -157,68 +127,6 @@ void D3D11Renderer::InitMainRenderingPipeline()
     ExitIfFailed(D3d11Device->CreateVertexShader(VsBuffer->GetBufferPointer(), VsBuffer->GetBufferSize(), nullptr, &VS));
     ExitIfFailed(D3d11Device->CreatePixelShader(PsBuffer->GetBufferPointer(), PsBuffer->GetBufferSize(), nullptr, &PS));
 
-    //Create the vertex buffer (cube)
-    std::vector<Vertex> vertices =
-    {
-        // Front Face
-        { { -1.0f, -1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 1.0f } },
-        { { -1.0f,  1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
-        { {  1.0f,  1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 0.0f } },
-        { {  1.0f, -1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 1.0f } },
-
-        // Back Face
-        { { -1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 1.0f } },
-        { {  1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 1.0f } },
-        { {  1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
-        { { -1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 0.0f } },
-
-        // Top Face
-        { { -1.0f,  1.0f, -1.0f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 1.0f } },
-        { { -1.0f,  1.0f,  1.0f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
-        { {  1.0f,  1.0f,  1.0f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 0.0f } },
-        { {  1.0f,  1.0f, -1.0f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } },
-
-        // Bottom Face
-        { { -1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 1.0f } },
-        { {  1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 1.0f } },
-        { {  1.0f, -1.0f,  1.0f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
-        { { -1.0f, -1.0f,  1.0f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 0.0f } },
-
-        // Left Face
-        { { -1.0f, -1.0f,  1.0f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
-        { { -1.0f,  1.0f,  1.0f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-        { { -1.0f,  1.0f, -1.0f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 0.0f } },
-        { { -1.0f, -1.0f, -1.0f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
-
-        // Right Face
-        { {  1.0f, -1.0f, -1.0f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
-        { {  1.0f,  1.0f, -1.0f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-        { {  1.0f,  1.0f,  1.0f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 0.0f } },
-        { {  1.0f, -1.0f,  1.0f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
-    };
-
-    uint32_t indices[] =
-    {
-        // Front Face
-        0,  1,  2,
-        0,  2,  3,
-        // Back Face
-        4,  5,  6,
-        4,  6,  7,
-        // Top Face
-        8,  9, 10,
-        8, 10, 11,
-        // Bottom Face
-        12, 13, 14,
-        12, 14, 15,
-        // Left Face
-        16, 17, 18,
-        16, 18, 19,
-        // Right Face
-        20, 21, 22,
-        20, 22, 23
-    };
-
     D3D11_INPUT_ELEMENT_DESC layout[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -226,35 +134,6 @@ void D3D11Renderer::InitMainRenderingPipeline()
         { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
     UINT numElements = ARRAYSIZE(layout);
-
-    D3D11_BUFFER_DESC indexBufferDesc;
-    ZeroMemory(&indexBufferDesc, sizeof(indexBufferDesc));
-
-    indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-    indexBufferDesc.ByteWidth = sizeof(indices);
-    indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    indexBufferDesc.CPUAccessFlags = 0;
-    indexBufferDesc.MiscFlags = 0;
-
-    D3D11_SUBRESOURCE_DATA indexInitData{};
-
-    indexInitData.pSysMem = indices;
-    ExitIfFailed(D3d11Device->CreateBuffer(&indexBufferDesc, &indexInitData, &CubesIndexBuffer));
-
-    D3D11_BUFFER_DESC vertexBufferDesc;
-    ZeroMemory(&vertexBufferDesc, sizeof(vertexBufferDesc));
-
-    vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-    vertexBufferDesc.ByteWidth = sizeof(Vertex) * static_cast<UINT>(vertices.size());
-    vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    vertexBufferDesc.CPUAccessFlags = 0;
-    vertexBufferDesc.MiscFlags = 0;
-
-    D3D11_SUBRESOURCE_DATA vertexBufferData;
-
-    ZeroMemory(&vertexBufferData, sizeof(vertexBufferData));
-    vertexBufferData.pSysMem = vertices.data();
-    ExitIfFailed(D3d11Device->CreateBuffer(&vertexBufferDesc, &vertexBufferData, &CubesVertBuffer));
 
     //Create the Input Layout
     ExitIfFailed(D3d11Device->CreateInputLayout(layout, numElements, VsBuffer->GetBufferPointer(),
@@ -449,12 +328,6 @@ void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform& platfo
 
     ExitIfFailed(D3d11Device->CreateBuffer(&constantBufferDesc, nullptr, &CbPerObjectBuffer));
 
-    // Texture Loading Test
-    Texture tex = LoadTexture("assets/textures/cat.jpg");
-    CubesTextureView = static_cast<ID3D11ShaderResourceView*>(CreateTextureView(tex));
-
-    //stbi_image_free(tex.Pixels.data());
-
     D3D11_SAMPLER_DESC samplerDesc;
     ZeroMemory(&samplerDesc, sizeof(samplerDesc));
     samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
@@ -540,6 +413,9 @@ void D3D11Renderer::RenderScene(GameState& gameState)
     constexpr float bgColor[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
     D3d11DeviceContext->ClearRenderTargetView(RenderTargetView, bgColor);
 
+    //Refresh the Depth/Stencil view
+    D3d11DeviceContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
     //Set Initial Vertex and Pixel Shaders
     D3d11DeviceContext->VSSetShader(VS, nullptr, 0);
     D3d11DeviceContext->PSSetShader(PS, nullptr, 0);
@@ -548,50 +424,37 @@ void D3D11Renderer::RenderScene(GameState& gameState)
     UINT stride = sizeof(Vertex);
     UINT offset = 0;
 
-    D3d11DeviceContext->IASetIndexBuffer(CubesIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-    D3d11DeviceContext->IASetVertexBuffers(0, 1, &CubesVertBuffer, &stride, &offset);
-    D3d11DeviceContext->IASetInputLayout(VertLayout);
-    D3d11DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	for (auto& entity : gameState.World.Entities)
+    {
+        D3d11DeviceContext->IASetIndexBuffer(static_cast<ID3D11Buffer*>(entity.Mesh.IndexBuffer), DXGI_FORMAT_R32_UINT, 0);
+        D3d11DeviceContext->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer**>(&entity.Mesh.VertexBuffer), &stride, &offset);
+        D3d11DeviceContext->IASetInputLayout(VertLayout);
+        D3d11DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    //Refresh the Depth/Stencil view
-    D3d11DeviceContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
-    //Enable the Default Rasterizer State
-    D3d11DeviceContext->RSSetState(nullptr);
-    //Draw objects that will use backface culling
+        //Enable the Default Rasterizer State
+        D3d11DeviceContext->RSSetState(nullptr);
+        //Turn off backface culling
+        //D3d11DeviceContext->RSSetState(NoCull);
 
-    //Turn off backface culling
-    D3d11DeviceContext->RSSetState(NoCull);
+        ConstBufferPerFrame.Light = gameState.GlobalDirectionalLight;
+        D3d11DeviceContext->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &ConstBufferPerFrame, 0, 0);
+        D3d11DeviceContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
 
-    ConstBufferPerFrame.Light = gameState.GlobalDirectionalLight;
-    D3d11DeviceContext->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &ConstBufferPerFrame, 0, 0);
-    D3d11DeviceContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
+        CbPerObj = {};
 
-    CbPerObj = {};
+        CbPerObj.Projection = gameState.MainCamera.Projection;
+        CbPerObj.View = gameState.MainCamera.View;
+        CbPerObj.World = entity.WorldMatrix;
 
-    CbPerObj.Projection = gameState.MainCamera.Projection;
-    CbPerObj.View = gameState.MainCamera.View;
-    CbPerObj.World = gameState.Cube1World;
-
-    D3d11DeviceContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
-    D3d11DeviceContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
-    D3d11DeviceContext->PSSetShaderResources(0, 1, &CubesTextureView);
-    D3d11DeviceContext->PSSetSamplers(0, 1, &CubesTexSamplerState);
-
-    //Draw the first cube
-    D3d11DeviceContext->DrawIndexed(36, 0, 0);
-
-    CbPerObj.Projection = gameState.MainCamera.Projection;
-    CbPerObj.View = gameState.MainCamera.View;
-    CbPerObj.World = gameState.Cube2World;
-
-    D3d11DeviceContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
-    D3d11DeviceContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
-    D3d11DeviceContext->PSSetShaderResources(0, 1, &CubesTextureView);
-    D3d11DeviceContext->PSSetSamplers(0, 1, &CubesTexSamplerState);
-
-    //Draw the second cube
-    D3d11DeviceContext->DrawIndexed(36, 0, 0);
+        D3d11DeviceContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
+        D3d11DeviceContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
+        ID3D11ShaderResourceView* textureView = static_cast<ID3D11ShaderResourceView*>(entity.Mesh.TextureViews[0]);
+        D3d11DeviceContext->PSSetShaderResources(0, 1, &textureView);
+        D3d11DeviceContext->PSSetSamplers(0, 1, &CubesTexSamplerState);
+        //Draw the mesh
+        D3d11DeviceContext->DrawIndexed(static_cast<UINT>(entity.Mesh.Indices.size()), 0, 0);
+    }
 }
 
 void D3D11Renderer::RenderText(GameState& gameState, int w, int h,

@@ -3,12 +3,12 @@
 
 #ifdef _WIN32
 
-static inline HWND _Hwnd;
-static inline HINSTANCE _HInstance;
+constinit HWND _Hwnd;
+constinit HINSTANCE _HInstance;
 
 static std::unordered_map<KeyCode, int> _KeyMap;
 
-static Input _Input{};
+constinit Input _Input{};
 
 static int TranslateModifierKey(WPARAM wParam, LPARAM lParam)
 {
@@ -136,9 +136,8 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
                     LONG dx = raw->data.mouse.lLastX;
                     LONG dy = raw->data.mouse.lLastY;
 
-                    _Input.MouseDelta = { 
-                        static_cast<float>(dx), 
-                        static_cast<float>(dy) };
+					_Input.MouseDelta.X += static_cast<float>(dx);
+					_Input.MouseDelta.Y += static_cast<float>(dy);
                 }
             }
             break;
@@ -206,8 +205,6 @@ void Win32Platform::PlatformInitWindow(int windowWidth, int windowHeight, const 
 
 void Win32Platform::PlatformUpdateWindow(bool& _Running)
 {
-    _Input.MouseDelta = {};
-
     MSG msg = { };
     while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
     {
@@ -227,9 +224,9 @@ void* Win32Platform::PlatformGetWindowHandle()
 void Win32Platform::PlatformInitInput()
 {
     RAWINPUTDEVICE rid{};
-    rid.usUsagePage = 0x01; // Generic desktop controls
-    rid.usUsage = 0x02;     // Mouse
-    rid.dwFlags = RIDEV_NOLEGACY;        // Use RIDEV_NOLEGACY if you want to disable normal WM_MOUSEMOVE
+    rid.usUsagePage = 0x01;
+    rid.usUsage = 0x02;
+    rid.dwFlags = RIDEV_NOLEGACY;
     rid.hwndTarget = _Hwnd;
     assert(RegisterRawInputDevices(&rid, 1, sizeof(rid)));
     SetProcessDPIAware();
@@ -349,6 +346,11 @@ V2 Win32Platform::GetMousePosition()
 V2 Win32Platform::GetMouseDelta()
 {
 	return _Input.MouseDelta;
+}
+
+void Win32Platform::SetMouseDelta(const V2& delta)
+{
+    _Input.MouseDelta = delta;
 }
 
 void Win32Platform::PlatformShowCursor(const bool show)

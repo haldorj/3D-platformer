@@ -7,14 +7,17 @@ class Platform;
 class Renderer
 {
 public:
+	virtual ~Renderer() = default;
+
 	virtual void* CreateTextureView(const Texture& texture) = 0;
 
 	virtual void InitRenderer(int gameHeight, int gameWidth,
 		Platform& platform, GameState& gameState) = 0;
 
 	virtual void InitMainRenderingPipeline() = 0;
-
 	virtual void InitFontRenderingPipeline() = 0;
+
+	virtual void UploadMeshesToGPU(Mesh& mesh) = 0;
 
 	virtual void RenderScene(GameState& gameState) = 0;
 
