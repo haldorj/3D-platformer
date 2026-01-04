@@ -25,6 +25,7 @@ struct M4
 inline float DegreesToRadians(float degrees)
 {
 	// 3.14159265359f / 180.0f = 0.01745329252f
+
 	return degrees * (0.01745329251f);
 }
 
