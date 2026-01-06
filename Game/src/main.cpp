@@ -26,13 +26,13 @@ void UpdateCamera(const float dt);
 
 static GameState _GameState;
 
-constinit std::unique_ptr<Platform> _Platform;
-constinit std::unique_ptr<Renderer> _Renderer;
+static std::unique_ptr<Platform> _Platform;
+static std::unique_ptr<Renderer> _Renderer;
 
 constinit uint32_t _WindowWidth = 1280;
 constinit uint32_t _WindowHeight = 720;
 
-uint32_t _GameResolutionWidth = 1280;
+constinit uint32_t _GameResolutionWidth = 1280;
 constinit uint32_t _GameResolutionHeight = 720;
 
 constinit bool _Running{};
@@ -41,6 +41,7 @@ constinit int _FPS{};
 constinit bool _VSync{ true };
 constinit bool _EditMode{};
 constinit bool _ShowCursor{ true };
+constinit float _MouseSensitivity = 0.1f;
 
 void Init()
 {
@@ -303,6 +304,8 @@ void UploadMeshesToGPU()
 void Move(float dt)
 {
     float moveSpeed = 5.0f * dt;
+    const V3& forward = Normalize(_GameState.MainCamera.Direction);
+    V3 right = Normalize(Cross(forward, _GameState.MainCamera.Up));
 
     if (_Platform->IsKeyDown(KeyCode::KEY_ESCAPE))
     {
@@ -310,19 +313,19 @@ void Move(float dt)
     }
     if (_Platform->IsKeyDown(KeyCode::KEY_W))
     {
-        _GameState.MainCamera.Position.Z += moveSpeed;
+        _GameState.MainCamera.Position += forward * moveSpeed;
     }
     if (_Platform->IsKeyDown(KeyCode::KEY_S))
     {
-        _GameState.MainCamera.Position.Z -= moveSpeed;
+        _GameState.MainCamera.Position -= forward * moveSpeed;
 	}
     if (_Platform->IsKeyDown(KeyCode::KEY_A))
     {
-        _GameState.MainCamera.Position.X -= moveSpeed;
+        _GameState.MainCamera.Position += right * moveSpeed;
 	}
     if (_Platform->IsKeyDown(KeyCode::KEY_D))
     {
-        _GameState.MainCamera.Position.X += moveSpeed;
+        _GameState.MainCamera.Position -= right * moveSpeed;
     }
     if (_Platform->IsKeyDown(KeyCode::KEY_SPACE))
     {
@@ -367,14 +370,12 @@ void Move(float dt)
 
 void UpdateCamera(const float dt)
 {
-    V2 delta = _Platform->GetMouseDelta();
-    const float sensitivity = 0.1f;
-
+    const V2& delta = _Platform->GetMouseDelta();
 	Camera& c = _GameState.MainCamera;
 
     // Adjust yaw/pitch
-    c.Yaw -= delta.X * sensitivity;
-    c.Pitch -= delta.Y * sensitivity;
+    c.Yaw -= delta.X * _MouseSensitivity;
+    c.Pitch -= delta.Y * _MouseSensitivity;
 
     // Clamp pitch
     if (c.Pitch > 89.0f)

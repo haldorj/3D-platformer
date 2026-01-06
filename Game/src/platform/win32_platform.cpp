@@ -178,8 +178,8 @@ void Win32Platform::PlatformInitWindow(int windowWidth, int windowHeight, const 
 
     // Create the window.
 
-    DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
-    //DWORD style = WS_OVERLAPPEDWINDOW;
+    //DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+    DWORD style = WS_OVERLAPPEDWINDOW;
 
     auto windowText = title;
 
@@ -226,7 +226,7 @@ void Win32Platform::PlatformInitInput()
     RAWINPUTDEVICE rid{};
     rid.usUsagePage = 0x01;
     rid.usUsage = 0x02;
-    rid.dwFlags = RIDEV_NOLEGACY;
+    rid.dwFlags = 0; /*RIDEV_NOLEGACY;*/
     rid.hwndTarget = _Hwnd;
     Assert(RegisterRawInputDevices(&rid, 1, sizeof(rid)));
     SetProcessDPIAware();
