@@ -54,9 +54,8 @@ void Init()
 #endif
     Assert(_Platform && _Renderer);
 
-    _Platform->PlatformInitWindow(_WindowWidth, _WindowHeight, L"Window");
-	_Platform->PlatformInitInput();
-
+    _Platform->InitWindow(_WindowWidth, _WindowHeight, L"Window");
+	_Platform->InitInput();
     _Renderer->InitRenderer(
         _GameResolutionHeight, _GameResolutionWidth, *_Platform, _GameState);
 
@@ -88,8 +87,8 @@ void Run()
         float textScale = 0.75f;
         const std::string fpsStr = std::move(std::format("FPS: {}", _FPS));
 
-        _Platform->PlatformUpdateWindow(_Running);
-		_Platform->PlatformUpdateInput();
+        _Platform->UpdateWindow(_Running);
+		_Platform->UpdateInput();
 
         Move(deltaTime);
         UpdateGame(deltaTime);
@@ -142,7 +141,7 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight)
     _GameState.MainCamera.Projection = MatrixPerspective(
         0.4f * 3.14f, static_cast<float>(gameResolutionWidth) / gameResolutionHeight, nearPlane, farPlane);
     
-    auto fontGlyphs = LoadFontGlyphs("C:/Windows/Fonts/calibri.ttf", _Renderer.get());
+    auto fontGlyphs = LoadFontGlyphs("C:/Windows/Fonts/Calibri.ttf", _Renderer.get());
     _GameState.LoadedFontGlyphs = std::move(fontGlyphs);
 
     _GameState.GlobalDirectionalLight.Direction = { .X = -0.25f, .Y = -0.5f, .Z = -1.0f };
@@ -350,8 +349,8 @@ void Move(float dt)
         if (_ShowCursor)
         {
             _ShowCursor = false;
-			_Platform->PlatformConfineCursorToWindow(true);
-            _Platform->PlatformShowCursor(false);
+			_Platform->ConfineCursorToWindow(true);
+            _Platform->SetCursorVisible(false);
 		}
 
         UpdateCamera(dt);
@@ -361,8 +360,8 @@ void Move(float dt)
         if (!_ShowCursor)
         {
             _ShowCursor = true;
-            _Platform->PlatformConfineCursorToWindow(false);
-            _Platform->PlatformShowCursor(_ShowCursor);
+            _Platform->ConfineCursorToWindow(false);
+            _Platform->SetCursorVisible(true);
         }
     }
     _Platform->SetMouseDelta({ 0.0f, 0.0f });
@@ -521,8 +520,13 @@ std::string ReadEntireFile(const std::string& path)
     return buffer;
 }
 
-int main()
+#ifdef WIN32
+// Winmain for Windows platform
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
     Init();
-	Run();
+    Run();
+
+    return 0;
 }
+#endif

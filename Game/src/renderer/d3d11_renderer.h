@@ -23,9 +23,6 @@ public:
     void InitRenderer(int gameHeight, int gameWidth, 
         Platform& platform, GameState& gameState) override;
 
-	void InitMainRenderingPipeline() override;
-	void InitFontRenderingPipeline() override;
-
     void UploadMeshesToGPU(Mesh& mesh) override;
 	void* CreateTextureView(const Texture& texture) override;
 
@@ -37,6 +34,9 @@ public:
 	void PresentSwapChain(bool& vSync) override;
 
 private:
+    void InitMainRenderingPipeline();
+    void InitFontRenderingPipeline();
+
     ComPtr<IDXGISwapChain1> SwapChain;
     ComPtr<ID3D11Device> D3d11Device;
     ComPtr<ID3D11DeviceContext> D3d11DeviceContext;

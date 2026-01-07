@@ -16,7 +16,7 @@ IncludeDir["stb"] = "game/vendor/stb"
 
 project "game"
 	location "game"
-	kind "ConsoleApp"
+	kind "WindowedApp" --"ConsoleApp"
 	language "C++"
 	cppdialect "C++latest"
 	staticruntime "on"

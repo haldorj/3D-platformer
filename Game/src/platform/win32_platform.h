@@ -5,13 +5,13 @@
 class Win32Platform final : public Platform
 {
 public:
-	void PlatformInitWindow(int windowWidth, int windowHeight,
+	void InitWindow(int windowWidth, int windowHeight,
 		const wchar_t* title) override;
-	void PlatformUpdateWindow(bool& running) override;
-	void* PlatformGetWindowHandle() override;
+	void UpdateWindow(bool& running) override;
+	void* GetWindowHandle() override;
 
-	void PlatformInitInput() override;
-	void PlatformUpdateInput() override;
+	void InitInput() override;
+	void UpdateInput() override;
 
 	bool IsKeyDown(KeyCode key) override;
 	bool IsKeyPressed(KeyCode key) override;
@@ -21,6 +21,6 @@ public:
 	V2 GetMouseDelta() override;
 	void SetMouseDelta(const V2& delta) override;
 	
-	void PlatformShowCursor(const bool show) override;
-	void PlatformConfineCursorToWindow(const bool confine) override;
+	void SetCursorVisible(const bool show) override;
+	void ConfineCursorToWindow(const bool confine) override;
 };

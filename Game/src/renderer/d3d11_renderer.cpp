@@ -262,7 +262,7 @@ void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform& platfo
     swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
     swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
 
-    void* window = platform.PlatformGetWindowHandle();
+    void* window = platform.GetWindowHandle();
     HWND hwnd = static_cast<HWND>(window);
 
     Assert(hwnd && "HWND is null!");

@@ -3,12 +3,10 @@
 
 #ifdef _WIN32
 
+constinit Input _Input{};
+static std::unordered_map<KeyCode, int> _KeyMap;
 constinit HWND _Hwnd;
 constinit HINSTANCE _HInstance;
-
-static std::unordered_map<KeyCode, int> _KeyMap;
-
-constinit Input _Input{};
 
 static int TranslateModifierKey(WPARAM wParam, LPARAM lParam)
 {
@@ -64,7 +62,6 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
         break;
 
 		// Handle mouse input
-        /*
         case WM_MOUSEMOVE:
         {
             _Input.MousePosition.X = static_cast<float>(GET_X_LPARAM(lParam));
@@ -72,7 +69,6 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
 
             break;
         }
-        */
 
         case WM_LBUTTONDOWN:
         {
@@ -153,7 +149,7 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 
-void Win32Platform::PlatformInitWindow(int windowWidth, int windowHeight, const wchar_t* title)
+void Win32Platform::InitWindow(int windowWidth, int windowHeight, const wchar_t* title)
 {
     // Register the window class.
     const wchar_t CLASS_NAME[] = L"Window Class";
@@ -203,7 +199,7 @@ void Win32Platform::PlatformInitWindow(int windowWidth, int windowHeight, const 
     ShowWindow(_Hwnd, nCmdShow);
 }
 
-void Win32Platform::PlatformUpdateWindow(bool& _Running)
+void Win32Platform::UpdateWindow(bool& _Running)
 {
     MSG msg = { };
     while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
@@ -216,12 +212,12 @@ void Win32Platform::PlatformUpdateWindow(bool& _Running)
     }
 }
 
-void* Win32Platform::PlatformGetWindowHandle()
+void* Win32Platform::GetWindowHandle()
 {
     return static_cast<void*>(_Hwnd);
 }
 
-void Win32Platform::PlatformInitInput()
+void Win32Platform::InitInput()
 {
     RAWINPUTDEVICE rid{};
     rid.usUsagePage = 0x01;
@@ -307,7 +303,7 @@ void Win32Platform::PlatformInitInput()
 
 }
 
-void Win32Platform::PlatformUpdateInput()
+void Win32Platform::UpdateInput()
 {
     auto& s = _Input.KeyStates;
     for (int i = 0; i < KEY_COUNT; ++i) 
@@ -353,12 +349,12 @@ void Win32Platform::SetMouseDelta(const V2& delta)
     _Input.MouseDelta = delta;
 }
 
-void Win32Platform::PlatformShowCursor(const bool show)
+void Win32Platform::SetCursorVisible(const bool show)
 {
 	ShowCursor(show);
 }
 
-void Win32Platform::PlatformConfineCursorToWindow(const bool confine)
+void Win32Platform::ConfineCursorToWindow(const bool confine)
 {
     if (confine)
     {

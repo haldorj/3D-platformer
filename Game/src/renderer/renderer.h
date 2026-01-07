@@ -14,9 +14,6 @@ public:
 	virtual void InitRenderer(int gameHeight, int gameWidth,
 		Platform& platform, GameState& gameState) = 0;
 
-	virtual void InitMainRenderingPipeline() = 0;
-	virtual void InitFontRenderingPipeline() = 0;
-
 	virtual void UploadMeshesToGPU(Mesh& mesh) = 0;
 
 	virtual void RenderScene(GameState& gameState) = 0;
