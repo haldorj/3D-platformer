@@ -13,6 +13,10 @@ public:
 	virtual void UpdateWindow(bool& running) = 0;
 	virtual void* GetWindowHandle() = 0;
 
+	// Console management
+	virtual void InitConsole() = 0;
+	virtual void ShutdownConsole() = 0;
+
 	// Input management
 	virtual void InitInput() = 0;
 	virtual void UpdateInput() = 0;

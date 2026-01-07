@@ -1,10 +1,10 @@
 #include "pch.h"
 #include <game.h>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
+
+#include "assets/model_loader.h"
 
 #ifdef _WIN32
 #include "platform/win32_platform.h"
@@ -13,6 +13,7 @@
 
 void Init();
 void Run();
+void Shutdown();
 void Move(float dt);
 void InitGame(int gameResolutionWidth, int gameResolutionHeight);
 void UploadMeshesToGPU();
@@ -20,7 +21,6 @@ void UpdateGame(const float dt);
 void UpdateCamera(const float dt);
 
 [[nodiscard]] std::string ReadEntireFile(const std::string& path);
-[[nodiscard]] Texture CreateErrorTexture();
 [[nodiscard]] Texture LoadTextureFromFile(const std::string& path);
 [[nodiscard]] std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path, Renderer* renderer);
 
@@ -55,6 +55,7 @@ void Init()
     Assert(_Platform && _Renderer);
 
     _Platform->InitWindow(_WindowWidth, _WindowHeight, L"Window");
+	_Platform->InitConsole();
 	_Platform->InitInput();
     _Renderer->InitRenderer(
         _GameResolutionHeight, _GameResolutionWidth, *_Platform, _GameState);
@@ -115,6 +116,11 @@ void Run()
     }
 }
 
+void Shutdown()
+{
+    _Platform->ShutdownConsole();
+}
+
 void InitGame(int gameResolutionWidth, int gameResolutionHeight)
 {
     //Camera information
@@ -165,53 +171,6 @@ Texture LoadTextureFromFile(const std::string& path)
     texture.Width = width;
     texture.Height = height;
     texture.Pixels = std::vector<unsigned char>(data, data + (width * height * 4));
-    return texture;
-}
-
-Texture CreateErrorTexture()
-{
-    Texture texture{};
-
-    constexpr size_t width = 256;
-    constexpr size_t height = 256;
-    auto pixels = static_cast<unsigned char*>(malloc(width * height * 4));
-
-    if (!pixels)
-    {
-        return texture;
-    }
-
-    // Checkerboard pattern
-    for (auto y = 0; y < height; ++y)
-    {
-        for (auto x = 0; x < width; ++x)
-        {
-            const int index = (y * width + x) * 4;
-            constexpr int checkSize = 16;
-
-            if (x / checkSize % 2 == y / checkSize % 2)
-            {
-                pixels[index + 0] = 255; // R
-                pixels[index + 1] = 0;   // G
-                pixels[index + 2] = 255; // B
-                pixels[index + 3] = 255; // A
-            }
-            else
-            {
-                pixels[index + 0] = 0;   // R
-                pixels[index + 1] = 0;   // G
-                pixels[index + 2] = 0;   // B
-                pixels[index + 3] = 255; // A
-            }
-        }
-    }
-
-    texture.Width = width;
-    texture.Height = height;
-    texture.Pixels = std::vector<unsigned char>(pixels, pixels + (width * height * 4));
-
-    free(pixels);
-
     return texture;
 }
 
@@ -281,22 +240,28 @@ void UploadMeshesToGPU()
         20, 22, 23
     };
 
-	Mesh cubeMesh{};
-    Texture tex = LoadTextureFromFile("assets/textures/crate.jpg");
+    //Mesh cubeMesh{};
+    //   Texture tex = LoadTextureFromFile("assets/textures/crate.jpg");
 
-    cubeMesh.Vertices = std::move(vertices);
-    cubeMesh.Indices = std::move(std::vector<uint32_t>(std::begin(indices), std::end(indices)));
-    cubeMesh.Textures.push_back(std::move(tex));
+    //   cubeMesh.Vertices = std::move(vertices);
+    //   cubeMesh.Indices = std::move(std::vector<uint32_t>(std::begin(indices), std::end(indices)));
+    //   cubeMesh.Textures.push_back(std::move(tex));
+    //   // Texture Loading Test
+    //_Renderer->UploadMeshesToGPU(cubeMesh);
+    //   stbi_image_free(tex.Pixels.data());
 
-    // Texture Loading Test
-	_Renderer->UploadMeshesToGPU(cubeMesh);
-    stbi_image_free(tex.Pixels.data());
+    Model model{};
+    LoadGLTFModel("assets/models/dummy_platformer.gltf", model);
+    for (auto& mesh : model.Meshes)
+    {
+        _Renderer->UploadMeshesToGPU(mesh);
+	}
 
 	//Assign the cube mesh to all entities
     for (int i = 0; i < MAX_ENTITIES; i++)
     {
         Entity& entity = _GameState.World.Entities[i];
-        entity.Mesh = cubeMesh;
+		entity.Model = model;
 	}
 }
 
@@ -521,11 +486,11 @@ std::string ReadEntireFile(const std::string& path)
 }
 
 #ifdef WIN32
-// Winmain for Windows platform
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
     Init();
     Run();
+	Shutdown();
 
     return 0;
 }

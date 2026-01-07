@@ -13,6 +13,8 @@ debugdir "%{wks.location}"
 
 IncludeDir = {}
 IncludeDir["stb"] = "game/vendor/stb"
+IncludeDir["json"] = "game/vendor/json"
+IncludeDir["tinygltf"] = "game/vendor/tinygltf"
 
 project "game"
 	location "game"
@@ -47,6 +49,8 @@ project "game"
 	{
 		"%{prj.name}/src",
 		"%{IncludeDir.stb}",
+		"%{IncludeDir.json}",
+		"%{IncludeDir.tinygltf}",
 	}
 
 	links 

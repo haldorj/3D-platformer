@@ -217,6 +217,17 @@ void* Win32Platform::GetWindowHandle()
     return static_cast<void*>(_Hwnd);
 }
 
+void Win32Platform::InitConsole()
+{
+    AllocConsole();
+	freopen_s(reinterpret_cast<FILE**>(stdout), "CONOUT$", "w", stdout);
+}
+
+void Win32Platform::ShutdownConsole()
+{
+	FreeConsole();
+}
+
 void Win32Platform::InitInput()
 {
     RAWINPUTDEVICE rid{};

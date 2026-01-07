@@ -426,34 +426,37 @@ void D3D11Renderer::RenderScene(GameState& gameState)
 
 	for (auto& entity : gameState.World.Entities)
     {
-        D3d11DeviceContext->IASetIndexBuffer(static_cast<ID3D11Buffer*>(entity.Mesh.IndexBuffer), DXGI_FORMAT_R32_UINT, 0);
-        D3d11DeviceContext->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer**>(&entity.Mesh.VertexBuffer), &stride, &offset);
-        D3d11DeviceContext->IASetInputLayout(VertLayout);
-        D3d11DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        for (auto& mesh : entity.Model.Meshes)
+        {
+            D3d11DeviceContext->IASetIndexBuffer(static_cast<ID3D11Buffer*>(mesh.IndexBuffer), DXGI_FORMAT_R32_UINT, 0);
+            D3d11DeviceContext->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer**>(&mesh.VertexBuffer), &stride, &offset);
+            D3d11DeviceContext->IASetInputLayout(VertLayout);
+            D3d11DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 
-        //Enable the Default Rasterizer State
-        D3d11DeviceContext->RSSetState(nullptr);
-        //Turn off backface culling
-        //D3d11DeviceContext->RSSetState(NoCull);
+            //Enable the Default Rasterizer State
+            D3d11DeviceContext->RSSetState(nullptr);
+            //Turn off backface culling
+            //D3d11DeviceContext->RSSetState(NoCull);
 
-        ConstBufferPerFrame.Light = gameState.GlobalDirectionalLight;
-        D3d11DeviceContext->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &ConstBufferPerFrame, 0, 0);
-        D3d11DeviceContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
+            ConstBufferPerFrame.Light = gameState.GlobalDirectionalLight;
+            D3d11DeviceContext->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &ConstBufferPerFrame, 0, 0);
+            D3d11DeviceContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
 
-        CbPerObj = {};
+            CbPerObj = {};
 
-        CbPerObj.Projection = gameState.MainCamera.Projection;
-        CbPerObj.View = gameState.MainCamera.View;
-        CbPerObj.World = entity.WorldMatrix;
+            CbPerObj.Projection = gameState.MainCamera.Projection;
+            CbPerObj.View = gameState.MainCamera.View;
+            CbPerObj.World = entity.WorldMatrix;
 
-        D3d11DeviceContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
-        D3d11DeviceContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
-        ID3D11ShaderResourceView* textureView = static_cast<ID3D11ShaderResourceView*>(entity.Mesh.TextureViews[0]);
-        D3d11DeviceContext->PSSetShaderResources(0, 1, &textureView);
-        D3d11DeviceContext->PSSetSamplers(0, 1, &CubesTexSamplerState);
-        //Draw the mesh
-        D3d11DeviceContext->DrawIndexed(static_cast<UINT>(entity.Mesh.Indices.size()), 0, 0);
+            D3d11DeviceContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
+            D3d11DeviceContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
+            ID3D11ShaderResourceView* textureView = static_cast<ID3D11ShaderResourceView*>(mesh.TextureViews[0]);
+            D3d11DeviceContext->PSSetShaderResources(0, 1, &textureView);
+            D3d11DeviceContext->PSSetSamplers(0, 1, &CubesTexSamplerState);
+            //Draw the mesh
+            D3d11DeviceContext->DrawIndexed(static_cast<UINT>(mesh.Indices.size()), 0, 0);
+        }
     }
 }
 

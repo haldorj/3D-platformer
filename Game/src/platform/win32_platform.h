@@ -10,6 +10,9 @@ public:
 	void UpdateWindow(bool& running) override;
 	void* GetWindowHandle() override;
 
+	void InitConsole() override;
+	void ShutdownConsole() override;
+
 	void InitInput() override;
 	void UpdateInput() override;
 

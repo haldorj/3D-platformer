@@ -27,6 +27,11 @@ struct Mesh
 	void* IndexBuffer{};
 };
 
+struct Model
+{
+    std::vector<Mesh> Meshes{};
+};
+
 struct DirectionalLight
 {
     V4 Color{};
@@ -70,7 +75,7 @@ struct GameMemory
 
 struct Entity
 {
-    Mesh Mesh{};
+    Model Model{};
     M4 WorldMatrix{};
 };
 
