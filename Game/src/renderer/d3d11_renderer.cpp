@@ -3,7 +3,6 @@
 #include "renderer/d3d11_renderer.h"
 #include "platform/platform.h"
 #include "game.h"
-#include <stb_image.h>
 
 static void ExitIfFailed(const HRESULT hr)
 {

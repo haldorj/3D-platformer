@@ -1,14 +1,11 @@
 #include "pch.h"
+
 #include <game.h>
-
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb_truetype.h"
-
-#include "assets/model_loader.h"
+#include <assets/model_loader.h>
 
 #ifdef _WIN32
-#include "platform/win32_platform.h"
-#include "renderer/d3d11_renderer.h"
+#include <platform/win32_platform.h>
+#include <renderer/d3d11_renderer.h>
 #endif
 
 void Init();
@@ -21,7 +18,6 @@ void UpdateGame(const float dt);
 void UpdateCamera(const float dt);
 
 [[nodiscard]] std::string ReadEntireFile(const std::string& path);
-[[nodiscard]] Texture LoadTextureFromFile(const std::string& path);
 [[nodiscard]] std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path, Renderer* renderer);
 
 static GameState _GameState;
@@ -29,19 +25,19 @@ static GameState _GameState;
 static std::unique_ptr<Platform> _Platform;
 static std::unique_ptr<Renderer> _Renderer;
 
-constinit uint32_t _WindowWidth = 1280;
-constinit uint32_t _WindowHeight = 720;
+static uint32_t _WindowWidth = 1280;
+static uint32_t _WindowHeight = 720;
 
-constinit uint32_t _GameResolutionWidth = 1280;
-constinit uint32_t _GameResolutionHeight = 720;
+static uint32_t _GameResolutionWidth = 1280;
+static uint32_t _GameResolutionHeight = 720;
 
-constinit bool _Running{};
+static bool _Running{};
 
-constinit int _FPS{};
-constinit bool _VSync{ true };
-constinit bool _EditMode{};
-constinit bool _ShowCursor{ true };
-constinit float _MouseSensitivity = 0.1f;
+static int _FPS{};
+static bool _VSync{ true };
+static bool _EditMode{};
+static bool _ShowCursor{ true };
+static float _MouseSensitivity = 0.1f;
 
 void Init()
 {
@@ -157,108 +153,19 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight)
     UploadMeshesToGPU();
 }
 
-Texture LoadTextureFromFile(const std::string& path)
-{
-    int width, height, channels;
-    unsigned char* data = stbi_load(path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
-
-    if (!data)
-    {
-        return CreateErrorTexture();
-    }
-
-    Texture texture;
-    texture.Width = width;
-    texture.Height = height;
-    texture.Pixels = std::vector<unsigned char>(data, data + (width * height * 4));
-    return texture;
-}
-
 void UploadMeshesToGPU()
 {
     Assert(_Renderer);
 
-    //Create the vertex buffer (cube)
-    std::vector<Vertex> vertices =
-    {
-        // Front Face
-        { { -1.0f, -1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 1.0f } },
-        { { -1.0f,  1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 0.0f, 0.0f } },
-        { {  1.0f,  1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 0.0f } },
-        { {  1.0f, -1.0f, -1.0f }, {  0.0f,  0.0f, -1.0f }, { 1.0f, 1.0f } },
-
-        // Back Face
-        { { -1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 1.0f } },
-        { {  1.0f, -1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 1.0f } },
-        { {  1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 0.0f, 0.0f } },
-        { { -1.0f,  1.0f,  1.0f }, {  0.0f,  0.0f,  1.0f }, { 1.0f, 0.0f } },
-
-        // Top Face
-        { { -1.0f,  1.0f, -1.0f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 1.0f } },
-        { { -1.0f,  1.0f,  1.0f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
-        { {  1.0f,  1.0f,  1.0f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 0.0f } },
-        { {  1.0f,  1.0f, -1.0f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } },
-
-        // Bottom Face
-        { { -1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 1.0f } },
-        { {  1.0f, -1.0f, -1.0f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 1.0f } },
-        { {  1.0f, -1.0f,  1.0f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 0.0f } },
-        { { -1.0f, -1.0f,  1.0f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 0.0f } },
-
-        // Left Face
-        { { -1.0f, -1.0f,  1.0f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
-        { { -1.0f,  1.0f,  1.0f }, { -1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-        { { -1.0f,  1.0f, -1.0f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 0.0f } },
-        { { -1.0f, -1.0f, -1.0f }, { -1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
-
-        // Right Face
-        { {  1.0f, -1.0f, -1.0f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 1.0f } },
-        { {  1.0f,  1.0f, -1.0f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
-        { {  1.0f,  1.0f,  1.0f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 0.0f } },
-        { {  1.0f, -1.0f,  1.0f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 1.0f } },
-    };
-
-    uint32_t indices[] =
-    {
-        // Front Face
-        0,  1,  2,
-        0,  2,  3,
-        // Back Face
-        4,  5,  6,
-        4,  6,  7,
-        // Top Face
-        8,  9, 10,
-        8, 10, 11,
-        // Bottom Face
-        12, 13, 14,
-        12, 14, 15,
-        // Left Face
-        16, 17, 18,
-        16, 18, 19,
-        // Right Face
-        20, 21, 22,
-        20, 22, 23
-    };
-
-    //Mesh cubeMesh{};
-    //   Texture tex = LoadTextureFromFile("assets/textures/crate.jpg");
-
-    //   cubeMesh.Vertices = std::move(vertices);
-    //   cubeMesh.Indices = std::move(std::vector<uint32_t>(std::begin(indices), std::end(indices)));
-    //   cubeMesh.Textures.push_back(std::move(tex));
-    //   // Texture Loading Test
-    //_Renderer->UploadMeshesToGPU(cubeMesh);
-    //   stbi_image_free(tex.Pixels.data());
-
     Model model{};
-    LoadGLTFModel("assets/models/dummy_platformer.gltf", model);
+    model = ModelLoader::LoadGLTFModel("assets/models/dummy_platformer.gltf");
     for (auto& mesh : model.Meshes)
     {
         _Renderer->UploadMeshesToGPU(mesh);
 	}
 
 	//Assign the cube mesh to all entities
-    for (int i = 0; i < MAX_ENTITIES; i++)
+    for (int i = 0; i < 12; i++)
     {
         Entity& entity = _GameState.World.Entities[i];
 		entity.Model = model;

@@ -103,8 +103,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="src\assets\assets.h" />
     <ClInclude Include="src\assets\model_loader.h" />
     <ClInclude Include="src\game.h" />
+    <ClInclude Include="src\impl.h" />
     <ClInclude Include="src\input\input.h" />
     <ClInclude Include="src\input\key_codes.h" />
     <ClInclude Include="src\math\handmade_math.h" />
@@ -115,6 +117,8 @@
     <ClInclude Include="src\renderer\renderer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\assets\model_loader.cpp" />
+    <ClCompile Include="src\impl.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>

@@ -1,5 +1,20 @@
 #pragma once
 
+#ifdef _DEBUG
+#include <assert.h>
+#define Assert(expr) assert(expr)
+#else
+#define Assert(expr) ((void)0)
+#endif
+
+#ifndef UNICODE
+#define UNICODE
+#endif
+
+//////////////////////////////////////////
+// C / C++ Standard library includes	//
+//////////////////////////////////////////
+
 #include <cstdio>
 #include <iostream>
 #include <fstream>
@@ -15,16 +30,17 @@
 #include <memory>
 #include <algorithm>
 
-#ifdef _DEBUG
-#include <assert.h>
-#define Assert(expr) assert(expr)
-#else
-#define Assert(expr) ((void)0)
-#endif
+//////////////////////////////////////////
+// Third party includes					//
+//////////////////////////////////////////
 
-#ifndef UNICODE
-#define UNICODE
-#endif
+#include <impl.h>
+#include <tiny_gltf.h>
+#include <stb_truetype.h>
+
+//////////////////////////////////////////
+// Platform includes					//
+//////////////////////////////////////////
 
 #ifdef _WIN32
 // Windows specific includes

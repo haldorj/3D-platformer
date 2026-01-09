@@ -18,6 +18,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\assets\assets.h">
+      <Filter>assets</Filter>
+    </ClInclude>
     <ClInclude Include="src\assets\model_loader.h">
       <Filter>assets</Filter>
     </ClInclude>
@@ -46,6 +49,9 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\assets\model_loader.cpp">
+      <Filter>assets</Filter>
+    </ClCompile>
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\pch.cpp" />
     <ClCompile Include="src\platform\win32_platform.cpp">
