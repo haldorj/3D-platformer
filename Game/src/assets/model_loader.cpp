@@ -70,11 +70,13 @@ static Texture LoadTextureFromFile(const std::string& path)
 
 Model ModelLoader::LoadGLTFModel(const std::string& filename)
 {
-    Model result;
+    std::print("Attempting to load model from file: \n\t{}.\n", filename);
+
+    Model result{};
 
     tinygltf::TinyGLTF loader;
     tinygltf::Model gltfModel;
-    std::string err, warn;
+    std::string err{}, warn{};
 
     std::string ext = GetFilePathExtension(filename);
 
@@ -82,18 +84,31 @@ Model ModelLoader::LoadGLTFModel(const std::string& filename)
     bool ok = false;
 
     if (isBinary)
+    {
         ok = loader.LoadBinaryFromFile(&gltfModel, &err, &warn, filename);
+        std::println("loaded .glb from file.");
+    }
     else
+    {
         ok = loader.LoadASCIIFromFile(&gltfModel, &err, &warn, filename);
+        std::println("loaded .{} from file.", ext);
+    }
 
-    if (!warn.empty()) std::println("Warning: {}", warn);
-    if (!err.empty())  std::println("Error: {}", err);
+    if (!warn.empty()) 
+    {
+        std::println("Warning: {}", warn);
+    }
+    if (!err.empty())
+    {
+        std::println("Error: {}", err);
+    }
     if (!ok)
     {
         std::println("Failed to load glTF: {}", filename);
         return {};
     }
 
+    std::println("loading textures...");
     // Load all textures
     std::vector<Texture> textures;
     for (auto& img : gltfModel.images)
@@ -110,6 +125,7 @@ Model ModelLoader::LoadGLTFModel(const std::string& filename)
         }
     }
 
+    std::println("loading meshes...");
     // Load all meshes
     for (auto& gltfMesh : gltfModel.meshes)
     {

@@ -480,4 +480,56 @@ void Win32Platform::InitAudio()
     }
 }
 
+void Win32Platform::PlayAudio(std::vector<float> audioBuffer, float volume, uint32_t sampleRate)
+{
+    if (audioBuffer.empty())
+    {
+        std::println("Warning: audio buffer was empty.");
+        return;
+    }
+
+    // To play a sound, the samples must be submitted to a source voice.
+    // We must provide a wave format description for it.
+
+    WAVEFORMATEX waveFormat = {};
+    waveFormat.wFormatTag = WAVE_FORMAT_IEEE_FLOAT; // Specify the float encoding.
+    waveFormat.nChannels = 2;  // channels of audio (2 for stereo).
+    waveFormat.nSamplesPerSec = sampleRate;
+    waveFormat.wBitsPerSample = sizeof(float) * 8;
+    waveFormat.nBlockAlign = (waveFormat.nChannels * waveFormat.wBitsPerSample) / 8;
+    waveFormat.nAvgBytesPerSec = waveFormat.nSamplesPerSec * waveFormat.nBlockAlign;
+
+    IXAudio2SourceVoice* sourceVoice{};
+    Assert(_XAudio2Instance->CreateSourceVoice(&sourceVoice, &waveFormat) == S_OK);
+
+    // We pass in the audio buffer and submit the data to the source voice.
+
+    XAUDIO2_BUFFER buffer = { 0 };
+    buffer.AudioBytes = static_cast<UINT32>(audioBuffer.size() * sizeof(float));
+    buffer.pAudioData = reinterpret_cast<BYTE*>(audioBuffer.data());
+
+    sourceVoice->SetVolume(volume);
+    sourceVoice->SubmitSourceBuffer(&buffer);
+
+    auto startTime = std::chrono::steady_clock::now();
+
+    sourceVoice->Start();
+
+    // The source voice state can be queried with IXAudio2SourceVoice::GetState.
+    XAUDIO2_VOICE_STATE state;
+    do 
+    {
+        sourceVoice->GetState(&state);
+        Sleep(100);
+    } while (state.BuffersQueued > 0);
+
+    auto endTime = std::chrono::steady_clock::now();
+
+    std::chrono::duration<double> duration = endTime - startTime;
+
+    std::println("Played sound for {} seconds.", duration.count());
+
+    sourceVoice->DestroyVoice();
+}
+
 #endif // _WIN32

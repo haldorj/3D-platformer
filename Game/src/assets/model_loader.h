@@ -1,5 +1,6 @@
 #pragma once
 #include "assets.h"
+#include <tiny_gltf.h>
 
 class ModelLoader
 {

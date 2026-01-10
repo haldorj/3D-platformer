@@ -34,4 +34,7 @@ public:
 
 	// Audio management
 	virtual void InitAudio() = 0;
+	virtual void PlayAudio(
+		std::vector<float> audioBuffer,
+		float volume, uint32_t sampleRate) = 0;
 };

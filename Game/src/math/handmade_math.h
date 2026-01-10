@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+constexpr float PI_32 = 3.14159265359f;
+
 struct V2
 {
 	float X, Y;

@@ -11,14 +11,18 @@
 void Init();
 void Run();
 void Shutdown();
+
 void Move(float dt);
 void InitGame(int gameResolutionWidth, int gameResolutionHeight);
 void UploadMeshesToGPU();
 void UpdateGame(const float dt);
 void UpdateCamera(const float dt);
 
-[[nodiscard]] std::string ReadEntireFile(const std::string& path);
-[[nodiscard]] std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path, Renderer* renderer);
+std::string ReadEntireFile(const std::string& path);
+std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path, Renderer* renderer);
+
+std::vector<float> GenerateSineWave(uint32_t sampleRate,
+    float frequency, float durationSeconds);
 
 static GameState _GameState;
 
@@ -38,6 +42,9 @@ static bool _VSync{ true };
 static bool _EditMode{};
 static bool _ShowCursor{ true };
 static float _MouseSensitivity = 0.1f;
+
+uint32_t _SampleRate = 44100;
+std::vector<float> _sineWave{};
 
 void Init()
 {
@@ -152,6 +159,9 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight)
     _GameState.GlobalDirectionalLight.Diffuse = { .X = 0.8f, .Y = 0.8f, .Z = 0.8f };
 
     UploadMeshesToGPU();
+
+    const float frequency = 440.f, duration = 5.0f;
+    _sineWave = GenerateSineWave(_SampleRate, frequency, duration);
 }
 
 void UploadMeshesToGPU()
@@ -207,6 +217,10 @@ void Move(float dt)
     {
         _GameState.MainCamera.Position.Y -= moveSpeed;
     }
+    if (_Platform->IsKeyPressed(KeyCode::KEY_Q))
+    {
+        _Platform->PlayAudio(_sineWave, 0.2f, _SampleRate);
+    }
 
     if (_Platform->IsKeyPressed(KeyCode::KEY_F1))
     {
@@ -216,6 +230,7 @@ void Move(float dt)
     {
         _EditMode = !_EditMode;
     }
+
 
     if (_EditMode)
     {
@@ -278,6 +293,26 @@ void UpdateCamera(const float dt)
 
     c.View = MatrixLookAt(c.Position, target, c.Up);
 
+}
+
+std::vector<float> GenerateSineWave(uint32_t sampleRate, 
+    float frequency, float durationSeconds)
+{
+    Assert(sampleRate > 0);
+
+    size_t samples = static_cast<size_t>(sampleRate * durationSeconds);
+    std::vector<float> buffer(samples * 2);
+
+    for (size_t i = 0; i < samples; ++i)
+    {
+        float t = static_cast<float>(i) / sampleRate;
+        float value = sinf(2.0f * 3.14159f * frequency * t);
+
+        buffer[i * 2 + 0] = value; // Left
+        buffer[i * 2 + 1] = value; // Right
+    }
+
+    return buffer;
 }
 
 void UpdateGame(const float dt)

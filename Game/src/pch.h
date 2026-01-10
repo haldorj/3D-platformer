@@ -11,6 +11,11 @@
 #define UNICODE
 #endif
 
+#define Kilobytes(number) ((number)*1024ull)
+#define Megabytes(number) (Kilobytes(number) * 1024ull)
+#define Gigabytes(number) (Megabytes(number) * 1024ull)
+#define Terabytes(number) (Gigabytes(number) * 1024ull)
+
 //////////////////////////////////////////
 // C / C++ Standard library includes	//
 //////////////////////////////////////////
@@ -35,7 +40,6 @@
 //////////////////////////////////////////
 
 #include <impl.h>
-#include <tiny_gltf.h>
 #include <stb_truetype.h>
 
 //////////////////////////////////////////
