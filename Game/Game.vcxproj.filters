@@ -25,6 +25,7 @@
       <Filter>assets</Filter>
     </ClInclude>
     <ClInclude Include="src\game.h" />
+    <ClInclude Include="src\impl.h" />
     <ClInclude Include="src\input\input.h">
       <Filter>input</Filter>
     </ClInclude>
@@ -52,6 +53,7 @@
     <ClCompile Include="src\assets\model_loader.cpp">
       <Filter>assets</Filter>
     </ClCompile>
+    <ClCompile Include="src\impl.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\pch.cpp" />
     <ClCompile Include="src\platform\win32_platform.cpp">

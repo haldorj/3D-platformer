@@ -3,10 +3,13 @@
 
 #ifdef _WIN32
 
-constinit Input _Input{};
+static Input _Input{};
 static std::unordered_map<KeyCode, int> _KeyMap;
-constinit HWND _Hwnd;
-constinit HINSTANCE _HInstance;
+static HWND _Hwnd;
+static HINSTANCE _HInstance;
+
+static IXAudio2* _XAudio2Instance{};
+static IXAudio2MasteringVoice* _XAudio2MasteringVoice{};
 
 static int TranslateModifierKey(WPARAM wParam, LPARAM lParam)
 {
@@ -223,9 +226,12 @@ void Win32Platform::InitConsole()
 	freopen_s(reinterpret_cast<FILE**>(stdout), "CONOUT$", "w", stdout);
 }
 
-void Win32Platform::ShutdownConsole()
+void Win32Platform::Shutdown()
 {
 	FreeConsole();
+
+    _XAudio2MasteringVoice->DestroyVoice();
+    _XAudio2Instance->Release();
 }
 
 void Win32Platform::InitInput()
@@ -378,6 +384,34 @@ void Win32Platform::ConfineCursorToWindow(const bool confine)
     {
         ClipCursor(nullptr);
 	}
+}
+
+void Win32Platform::InitAudio()
+{
+    // https://www.rovecoder.net/article/xaudio2/initializing-
+
+    // Initialize the COM library.
+    Assert(CoInitializeEx(nullptr, COINIT_MULTITHREADED) == S_OK);
+
+    // The audio engine by default will use the default processor, 
+    // this can be changed in the 3rd parameter of XAudio2Create 
+    // to specify a processor, or to use all of them.
+    if (XAudio2Create(&_XAudio2Instance) != S_OK)
+    {
+        std::println("Failed to create XAudio2 instance");
+        CoUninitialize();
+        return;
+    }
+
+    // A mastering voice is used to represent the audio output device.
+    if (_XAudio2Instance->CreateMasteringVoice(&_XAudio2MasteringVoice) != S_OK)
+    {
+        std::println("Failed to initialize XAudio2");
+        CoUninitialize();
+        return;
+    }
+
+    std::println("XAudio2 initialized.");
 }
 
 #endif // _WIN32

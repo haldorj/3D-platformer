@@ -11,7 +11,7 @@ public:
 	void* GetWindowHandle() override;
 
 	void InitConsole() override;
-	void ShutdownConsole() override;
+	void Shutdown() override;
 
 	void InitInput() override;
 	void UpdateInput() override;
@@ -26,4 +26,6 @@ public:
 	
 	void SetCursorVisible(const bool show) override;
 	void ConfineCursorToWindow(const bool confine) override;
+
+	void InitAudio() override;
 };

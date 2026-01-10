@@ -53,15 +53,15 @@ project "game"
 		"%{IncludeDir.tinygltf}",
 	}
 
-	links 
-	{ 
-		"d3d11.lib", 
-		"dxgi.lib", 
-		"d3dcompiler.lib"
-	}
-
 	filter "system:windows"
 		systemversion "latest"
+		links 
+		{ 
+			"d3d11.lib", 
+			"dxgi.lib", 
+			"d3dcompiler.lib",
+			"xaudio2.lib"
+		}
 
 	filter "configurations:Debug"
 		defines "GAME_DEBUG"

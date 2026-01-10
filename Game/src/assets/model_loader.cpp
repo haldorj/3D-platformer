@@ -1,6 +1,8 @@
 #include <pch.h>
+
 #include "model_loader.h"
 #include "math/handmade_math.h"
+#include "stb_image.h"
 
 static Texture CreateErrorTexture()
 {
@@ -8,19 +10,15 @@ static Texture CreateErrorTexture()
 
     constexpr size_t width = 256;
     constexpr size_t height = 256;
-    auto pixels = static_cast<unsigned char*>(malloc(width * height * 4));
-
-    if (!pixels)
-    {
-        return texture;
-    }
+    std::vector<unsigned char> pixels{};
+    pixels.resize(width * height * 4);
 
     // Checkerboard pattern
     for (auto y = 0; y < height; ++y)
     {
         for (auto x = 0; x < width; ++x)
         {
-            const int index = (y * width + x) * 4;
+            const size_t index = (y * width + x) * 4;
             constexpr int checkSize = 16;
 
             if (x / checkSize % 2 == y / checkSize % 2)
@@ -42,9 +40,7 @@ static Texture CreateErrorTexture()
 
     texture.Width = width;
     texture.Height = height;
-    texture.Pixels = std::vector<unsigned char>(pixels, pixels + (width * height * 4));
-
-    free(pixels);
+    texture.Pixels = pixels;
 
     return texture;
 }
@@ -55,7 +51,6 @@ static std::string GetFilePathExtension(const std::string& FileName) {
     return "";
 }
 
-/*
 static Texture LoadTextureFromFile(const std::string& path)
 {
     int width, height, channels;
@@ -72,7 +67,6 @@ static Texture LoadTextureFromFile(const std::string& path)
     texture.Pixels = std::vector<unsigned char>(data, data + (width * height * 4));
     return texture;
 }
-*/
 
 Model ModelLoader::LoadGLTFModel(const std::string& filename)
 {

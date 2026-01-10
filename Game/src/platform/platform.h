@@ -15,7 +15,7 @@ public:
 
 	// Console management
 	virtual void InitConsole() = 0;
-	virtual void ShutdownConsole() = 0;
+	virtual void Shutdown() = 0;
 
 	// Input management
 	virtual void InitInput() = 0;
@@ -31,4 +31,7 @@ public:
 
 	virtual void SetCursorVisible(const bool show) = 0;
 	virtual void ConfineCursorToWindow(const bool confine) = 0;
+
+	// Audio management
+	virtual void InitAudio() = 0;
 };

@@ -53,6 +53,7 @@ void Init()
     _Platform->InitWindow(_WindowWidth, _WindowHeight, L"Window");
 	_Platform->InitConsole();
 	_Platform->InitInput();
+    _Platform->InitAudio();
     _Renderer->InitRenderer(
         _GameResolutionHeight, _GameResolutionWidth, *_Platform, _GameState);
 
@@ -79,10 +80,10 @@ void Run()
             fpsFrameCount = 0;
             fpsTimer = 0.0;
         }
-
+        
         V3 textColor = { 1.0f, 1.0f, 1.0f };
         float textScale = 0.75f;
-        const std::string fpsStr = std::move(std::format("FPS: {}", _FPS));
+        const std::string fpsStr = std::format("FPS: {}", _FPS);
 
         _Platform->UpdateWindow(_Running);
 		_Platform->UpdateInput();
@@ -114,7 +115,7 @@ void Run()
 
 void Shutdown()
 {
-    _Platform->ShutdownConsole();
+    _Platform->Shutdown();
 }
 
 void InitGame(int gameResolutionWidth, int gameResolutionHeight)
@@ -141,7 +142,7 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight)
 	float nearPlane = 0.1f;
 	float farPlane = 1000.0f;
     _GameState.MainCamera.Projection = MatrixPerspective(
-        0.4f * 3.14f, static_cast<float>(gameResolutionWidth) / gameResolutionHeight, nearPlane, farPlane);
+        0.5f * 3.14f, static_cast<float>(gameResolutionWidth) / gameResolutionHeight, nearPlane, farPlane);
     
     auto fontGlyphs = LoadFontGlyphs("C:/Windows/Fonts/Calibri.ttf", _Renderer.get());
     _GameState.LoadedFontGlyphs = std::move(fontGlyphs);

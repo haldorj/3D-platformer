@@ -52,4 +52,6 @@
 #include <d3dcompiler.h>
 #include <comdef.h>
 #include <wrl/client.h>
+
+#include <xaudio2.h>
 #endif
