@@ -105,6 +105,7 @@
   <ItemGroup>
     <ClInclude Include="src\assets\assets.h" />
     <ClInclude Include="src\assets\model_loader.h" />
+    <ClInclude Include="src\core\pool_allocator.h" />
     <ClInclude Include="src\game.h" />
     <ClInclude Include="src\impl.h" />
     <ClInclude Include="src\input\input.h" />

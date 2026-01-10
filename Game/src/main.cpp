@@ -21,7 +21,7 @@ void UpdateCamera(const float dt);
 std::string ReadEntireFile(const std::string& path);
 std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path, Renderer* renderer);
 
-std::vector<float> GenerateSineWave(uint32_t sampleRate,
+Sound GenerateSineWave(uint32_t sampleRate,
     float frequency, float durationSeconds);
 
 static GameState _GameState;
@@ -44,7 +44,7 @@ static bool _ShowCursor{ true };
 static float _MouseSensitivity = 0.1f;
 
 uint32_t _SampleRate = 44100;
-std::vector<float> _sineWave{};
+Sound _SineWave{};
 
 void Init()
 {
@@ -161,7 +161,7 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight)
     UploadMeshesToGPU();
 
     const float frequency = 440.f, duration = 5.0f;
-    _sineWave = GenerateSineWave(_SampleRate, frequency, duration);
+    _SineWave = GenerateSineWave(_SampleRate, frequency, duration);
 }
 
 void UploadMeshesToGPU()
@@ -219,7 +219,7 @@ void Move(float dt)
     }
     if (_Platform->IsKeyPressed(KeyCode::KEY_Q))
     {
-        _Platform->PlayAudio(_sineWave, 0.2f, _SampleRate);
+        _Platform->PlayAudio(_SineWave ,0.2f);
     }
 
     if (_Platform->IsKeyPressed(KeyCode::KEY_F1))
@@ -295,10 +295,12 @@ void UpdateCamera(const float dt)
 
 }
 
-std::vector<float> GenerateSineWave(uint32_t sampleRate, 
+Sound GenerateSineWave(uint32_t sampleRate, 
     float frequency, float durationSeconds)
 {
     Assert(sampleRate > 0);
+
+    Sound result{};
 
     size_t samples = static_cast<size_t>(sampleRate * durationSeconds);
     std::vector<float> buffer(samples * 2);
@@ -312,7 +314,9 @@ std::vector<float> GenerateSineWave(uint32_t sampleRate,
         buffer[i * 2 + 1] = value; // Right
     }
 
-    return buffer;
+    result.AudioBuffer = buffer;
+
+    return result;
 }
 
 void UpdateGame(const float dt)

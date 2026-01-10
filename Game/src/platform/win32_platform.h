@@ -28,7 +28,9 @@ public:
 	void ConfineCursorToWindow(const bool confine) override;
 
 	void InitAudio() override;
-	void PlayAudio(
-		std::vector<float> audioBuffer,
-		float volume, uint32_t sampleRate) override;
+	void PlayAudio(Sound& sound, float volume) override;
+
+private:
+	void InitVoicePool();
+	IXAudio2SourceVoice* TryGetFreeVoice();
 };

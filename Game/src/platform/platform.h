@@ -2,6 +2,13 @@
 #include <math/handmade_math.h>
 #include <input/input.h>
 
+struct Sound
+{
+	std::vector<float> AudioBuffer{};
+	uint32_t SampleRate{44100};
+	uint32_t NumChannels{2};
+};
+
 class Platform
 {
 public:
@@ -34,7 +41,5 @@ public:
 
 	// Audio management
 	virtual void InitAudio() = 0;
-	virtual void PlayAudio(
-		std::vector<float> audioBuffer,
-		float volume, uint32_t sampleRate) = 0;
+	virtual void PlayAudio(Sound& sound, float volume) = 0;
 };

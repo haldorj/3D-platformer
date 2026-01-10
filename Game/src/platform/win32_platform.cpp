@@ -3,13 +3,17 @@
 
 #ifdef _WIN32
 
-static Input _Input{};
-static std::unordered_map<KeyCode, int> _KeyMap;
 static HWND _Hwnd;
 static HINSTANCE _HInstance;
 
+static Input _Input{};
+static std::unordered_map<KeyCode, int> _KeyMap;
+
 static IXAudio2* _XAudio2Instance{};
 static IXAudio2MasteringVoice* _XAudio2MasteringVoice{};
+
+static constexpr size_t MAX_SOURCE_VOICES = 32;
+static std::array <IXAudio2SourceVoice*, MAX_SOURCE_VOICES> _VoicePool{};
 
 static int TranslateModifierKey(WPARAM wParam, LPARAM lParam)
 {
@@ -230,8 +234,21 @@ void Win32Platform::Shutdown()
 {
 	FreeConsole();
 
+    for (auto& voice : _VoicePool) 
+    {
+        if (!voice) continue;
+
+        XAUDIO2_VOICE_STATE state;
+        voice->GetState(&state);
+        if (state.BuffersQueued > 0)
+            voice->Stop();
+
+        voice->DestroyVoice();
+    }
     _XAudio2MasteringVoice->DestroyVoice();
     _XAudio2Instance->Release();
+
+    CoUninitialize();
 }
 
 void Win32Platform::InitInput()
@@ -400,7 +417,7 @@ void Win32Platform::InitAudio()
 #ifdef _DEBUG
     flags = XAUDIO2_DEBUG_ENGINE;
 #endif
-    if (XAudio2Create(&_XAudio2Instance, flags, XAUDIO2_ANY_PROCESSOR) != S_OK)
+    if (XAudio2Create(&_XAudio2Instance, flags) != S_OK)
     {
         std::println("Failed to create XAudio2 instance");
         CoUninitialize();
@@ -478,58 +495,71 @@ void Win32Platform::InitAudio()
         printDeviceName(device);
         device->Release();
     }
+
+    InitVoicePool();
 }
 
-void Win32Platform::PlayAudio(std::vector<float> audioBuffer, float volume, uint32_t sampleRate)
+void Win32Platform::PlayAudio(Sound& sound, float volume)
 {
-    if (audioBuffer.empty())
-    {
-        std::println("Warning: audio buffer was empty.");
-        return;
-    }
+    IXAudio2SourceVoice* voice = TryGetFreeVoice();
 
-    // To play a sound, the samples must be submitted to a source voice.
-    // We must provide a wave format description for it.
+    // No free voices available.
+    // Consider increasing MAX_SOURCE_VOICES.
+    Assert(voice);
+
+    XAUDIO2_BUFFER buffer = {};
+    buffer.AudioBytes = static_cast<UINT32>(sound.AudioBuffer.size() * sizeof(float));
+    buffer.pAudioData = reinterpret_cast<BYTE*>(sound.AudioBuffer.data());
+
+    voice->Stop();
+    voice->FlushSourceBuffers();
+
+    voice->SetVolume(volume);
+    voice->SubmitSourceBuffer(&buffer);
+
+    voice->Start();
+}
+
+void Win32Platform::InitVoicePool()
+{
+    constexpr uint32_t kSampleRate = 44100;
+    constexpr uint16_t kChannels = 2;
 
     WAVEFORMATEX waveFormat = {};
-    waveFormat.wFormatTag = WAVE_FORMAT_IEEE_FLOAT; // Specify the float encoding.
-    waveFormat.nChannels = 2;  // channels of audio (2 for stereo).
-    waveFormat.nSamplesPerSec = sampleRate;
+    waveFormat.wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
+    waveFormat.nChannels = kChannels;
+    waveFormat.nSamplesPerSec = kSampleRate;
     waveFormat.wBitsPerSample = sizeof(float) * 8;
     waveFormat.nBlockAlign = (waveFormat.nChannels * waveFormat.wBitsPerSample) / 8;
     waveFormat.nAvgBytesPerSec = waveFormat.nSamplesPerSec * waveFormat.nBlockAlign;
 
-    IXAudio2SourceVoice* sourceVoice{};
-    Assert(_XAudio2Instance->CreateSourceVoice(&sourceVoice, &waveFormat) == S_OK);
-
-    // We pass in the audio buffer and submit the data to the source voice.
-
-    XAUDIO2_BUFFER buffer = { 0 };
-    buffer.AudioBytes = static_cast<UINT32>(audioBuffer.size() * sizeof(float));
-    buffer.pAudioData = reinterpret_cast<BYTE*>(audioBuffer.data());
-
-    sourceVoice->SetVolume(volume);
-    sourceVoice->SubmitSourceBuffer(&buffer);
-
-    auto startTime = std::chrono::steady_clock::now();
-
-    sourceVoice->Start();
-
-    // The source voice state can be queried with IXAudio2SourceVoice::GetState.
-    XAUDIO2_VOICE_STATE state;
-    do 
+    for (auto& voice : _VoicePool)
     {
-        sourceVoice->GetState(&state);
-        Sleep(100);
-    } while (state.BuffersQueued > 0);
+        HRESULT hr = _XAudio2Instance->CreateSourceVoice(&voice, &waveFormat);
+        if (FAILED(hr)) 
+        {
+            std::println("Failed to create source voice (hr=0x{:08X})", hr);
+            voice = nullptr;
+        }
+    }
+}
 
-    auto endTime = std::chrono::steady_clock::now();
+IXAudio2SourceVoice* Win32Platform::TryGetFreeVoice()
+{
+    for (auto& voice : _VoicePool)
+    {
+        XAUDIO2_VOICE_STATE state;
+        voice->GetState(&state);
 
-    std::chrono::duration<double> duration = endTime - startTime;
+        if (state.BuffersQueued > 0)
+            continue;
 
-    std::println("Played sound for {} seconds.", duration.count());
+        return voice;
+    }
 
-    sourceVoice->DestroyVoice();
+    std::println("Warning: no source voices available (XAudio2).");
+
+    return nullptr;
 }
 
 #endif // _WIN32
