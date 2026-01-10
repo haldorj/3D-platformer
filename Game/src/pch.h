@@ -54,4 +54,6 @@
 #include <wrl/client.h>
 
 #include <xaudio2.h>
+#include <mmdeviceapi.h>
+#include <Functiondiscoverykeys_devpkey.h>
 #endif

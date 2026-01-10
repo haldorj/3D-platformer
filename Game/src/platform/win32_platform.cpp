@@ -396,7 +396,11 @@ void Win32Platform::InitAudio()
     // The audio engine by default will use the default processor, 
     // this can be changed in the 3rd parameter of XAudio2Create 
     // to specify a processor, or to use all of them.
-    if (XAudio2Create(&_XAudio2Instance) != S_OK)
+    UINT32 flags{};
+#ifdef _DEBUG
+    flags = XAUDIO2_DEBUG_ENGINE;
+#endif
+    if (XAudio2Create(&_XAudio2Instance, flags, XAUDIO2_ANY_PROCESSOR) != S_OK)
     {
         std::println("Failed to create XAudio2 instance");
         CoUninitialize();
@@ -411,7 +415,69 @@ void Win32Platform::InitAudio()
         return;
     }
 
-    std::println("XAudio2 initialized.");
+    std::println("XAudio2 instance created.");
+
+    // Device Enumeration: retrieve and loop over all available audio devices.
+
+    // Create enumerator.
+    IMMDeviceEnumerator* enumerator{};
+    if (CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL,
+        __uuidof(IMMDeviceEnumerator), (void**)&enumerator) != S_OK)
+    {
+        std::println("CoCreateInstance failed\n");
+        return;
+    }
+
+    auto printDeviceName = [](IMMDevice* device)
+        {
+            // Get device properties store
+            IPropertyStore* property_store{};
+            if (device->OpenPropertyStore(STGM_READ, &property_store) != S_OK)
+            {
+                device->Release();
+                return;
+            }
+
+            // Get device name
+            PROPVARIANT property;
+            PropVariantInit(&property);
+            if (property_store->GetValue(PKEY_Device_FriendlyName, &property) == S_OK)
+            {
+                std::wcout << L"Device: " << property.pwszVal << '\n';
+                PropVariantClear(&property);
+            }
+        };
+
+    // IMMDevice is an interface for accessing the audio device.
+    IMMDevice* device = {};
+    enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
+
+    std::println("------------------------------------------------------------");
+    std::println("Default audio device:");
+    printDeviceName(device);
+    std::println("------------------------------------------------------------");
+
+    device->Release();
+
+    // fetch all the audio endpoints.
+    IMMDeviceCollection* collection{};
+    if (enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &collection) != S_OK)
+    {
+        std::println("IMMDeviceEnumerator::EnumAudioEndpoints failed");
+        return;
+    }
+
+    // Get the number of available devices.
+    UINT count = 0;
+    collection->GetCount(&count);
+
+    for (UINT i = 0; i < count; i++)
+    {
+        device = {};
+        collection->Item(i, &device);
+        printDeviceName(device);
+        device->Release();
+    }
 }
 
 #endif // _WIN32
