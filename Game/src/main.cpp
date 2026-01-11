@@ -160,8 +160,10 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight)
 
     UploadMeshesToGPU();
 
-    const float frequency = 440.f, duration = 5.0f;
-    _SineWave = GenerateSineWave(_SampleRate, frequency, duration);
+    //const float frequency = 440.f, duration = 0.2f;
+    //_SineWave = GenerateSineWave(_SampleRate, frequency, duration);
+
+    _SineWave = LoadWavFile("assets/audio/jump.wav");
 }
 
 void UploadMeshesToGPU()

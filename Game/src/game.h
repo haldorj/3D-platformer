@@ -32,18 +32,6 @@ struct Camera
     float Yaw{};
 };
 
-/*
-struct GameMemory
-{
-    uint64_t PermanentStorageSize;
-    uint64_t TransientStorageSize;
-    void* PermanentStorage; // Required to be cleared to zero at startup
-    void* TransientStorage; // Required to be cleared to zero at startup
-
-    bool IsInitialized;
-};
-*/
-
 struct Entity
 {
     Model Model{};

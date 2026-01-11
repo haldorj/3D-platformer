@@ -24,6 +24,9 @@
     <ClInclude Include="src\assets\model_loader.h">
       <Filter>assets</Filter>
     </ClInclude>
+    <ClInclude Include="src\assets\sound.h">
+      <Filter>assets</Filter>
+    </ClInclude>
     <ClInclude Include="src\game.h" />
     <ClInclude Include="src\impl.h" />
     <ClInclude Include="src\input\input.h">
@@ -48,10 +51,12 @@
     <ClInclude Include="src\renderer\renderer.h">
       <Filter>renderer</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\pool_allocator.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\assets\model_loader.cpp">
+      <Filter>assets</Filter>
+    </ClCompile>
+    <ClCompile Include="src\assets\sound.cpp">
       <Filter>assets</Filter>
     </ClCompile>
     <ClCompile Include="src\impl.cpp" />

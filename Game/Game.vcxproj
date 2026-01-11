@@ -105,7 +105,7 @@
   <ItemGroup>
     <ClInclude Include="src\assets\assets.h" />
     <ClInclude Include="src\assets\model_loader.h" />
-    <ClInclude Include="src\core\pool_allocator.h" />
+    <ClInclude Include="src\assets\sound.h" />
     <ClInclude Include="src\game.h" />
     <ClInclude Include="src\impl.h" />
     <ClInclude Include="src\input\input.h" />
@@ -119,6 +119,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\assets\model_loader.cpp" />
+    <ClCompile Include="src\assets\sound.cpp" />
     <ClCompile Include="src\impl.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\pch.cpp">

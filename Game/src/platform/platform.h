@@ -1,14 +1,16 @@
 #pragma once
 #include <math/handmade_math.h>
 #include <input/input.h>
+#include <assets/sound.h>
 
-struct Sound
+struct MemoryAllocator
 {
-	std::vector<float> AudioBuffer{};
-	uint32_t SampleRate{44100};
-	uint32_t NumChannels{2};
+	uint64_t Capacity;
+	uint64_t Size;
+	void* Storage; // Required to be cleared to zero at startup
 };
 
+// TODO: Consider splitting platform layer into smaller subsystems.
 class Platform
 {
 public:
