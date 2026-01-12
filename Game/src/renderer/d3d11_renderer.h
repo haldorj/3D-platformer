@@ -21,14 +21,14 @@ class D3D11Renderer final : public Renderer
 {
 public:
     void InitRenderer(int gameHeight, int gameWidth, 
-        Platform& platform, GameState& gameState) override;
+        Platform& platform, GameState* gameState) override;
 
     void UploadMeshesToGPU(Mesh& mesh) override;
 	void* CreateTextureView(const Texture& texture) override;
 
-	void RenderScene(GameState& gameState) override;
-	void RenderText(GameState& gameState, int w, int h,
-        const std::string_view text, float x, float y, 
+	void RenderScene(GameState* gameState) override;
+	void RenderText(std::unordered_map<char, FontGlyph>& glyphs, 
+        int w, int h, const std::string_view text, float x, float y, 
         const float scale, const V3& color) override;
 
 	void PresentSwapChain(bool& vSync) override;

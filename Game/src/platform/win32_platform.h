@@ -31,7 +31,7 @@ public:
 	void PlayAudio(Sound& sound, float volume) override;
 
 	void* AllocateMemory(size_t capacity) override;
-	void FreeMemory(void* memory) override;
+	void FreeMemory(void*& memory) override;
 
 private:
 	void InitVoicePool();

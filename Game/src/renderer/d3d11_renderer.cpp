@@ -231,7 +231,7 @@ void D3D11Renderer::InitFontRenderingPipeline()
         FontVsBuffer->GetBufferSize(), &FontVertLayout));
 }
 
-void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform& platform, GameState& gameState)
+void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform& platform, GameState* gameState)
 {
     //////////////////////////////////
     // Init D3D11                   //
@@ -400,13 +400,13 @@ void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform& platfo
 
     ExitIfFailed(D3d11Device->CreateBuffer(&constantBufferDesc, nullptr, &cbPerFrameBuffer));
 
-    ConstBufferPerFrame.Light = gameState.GlobalDirectionalLight;
+    ConstBufferPerFrame.Light = gameState->GlobalDirectionalLight;
 
     D3d11DeviceContext->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &ConstBufferPerFrame, 0, 0);
     D3d11DeviceContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
 }
 
-void D3D11Renderer::RenderScene(GameState& gameState)
+void D3D11Renderer::RenderScene(GameState* gameState)
 {
     //Clear our back buffer (sky blue)
     constexpr float bgColor[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
@@ -423,7 +423,7 @@ void D3D11Renderer::RenderScene(GameState& gameState)
     UINT stride = sizeof(Vertex);
     UINT offset = 0;
 
-	for (auto& entity : gameState.World.Entities)
+	for (auto& entity : gameState->World.Entities)
     {
         for (auto& mesh : entity.Model.Meshes)
         {
@@ -438,14 +438,14 @@ void D3D11Renderer::RenderScene(GameState& gameState)
             //Turn off backface culling
             //D3d11DeviceContext->RSSetState(NoCull);
 
-            ConstBufferPerFrame.Light = gameState.GlobalDirectionalLight;
+            ConstBufferPerFrame.Light = gameState->GlobalDirectionalLight;
             D3d11DeviceContext->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &ConstBufferPerFrame, 0, 0);
             D3d11DeviceContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
 
             CbPerObj = {};
 
-            CbPerObj.Projection = gameState.MainCamera.Projection;
-            CbPerObj.View = gameState.MainCamera.View;
+            CbPerObj.Projection = gameState->MainCamera.Projection;
+            CbPerObj.View = gameState->MainCamera.View;
             CbPerObj.World = entity.WorldMatrix;
 
             D3d11DeviceContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
@@ -459,8 +459,9 @@ void D3D11Renderer::RenderScene(GameState& gameState)
     }
 }
 
-void D3D11Renderer::RenderText(GameState& gameState, int w, int h,
-    const std::string_view text, float x, float y, const float scale, const V3& color)
+void D3D11Renderer::RenderText(std::unordered_map<char, FontGlyph>& glyphs,
+    int w, int h, const std::string_view text, float x, float y,
+    const float scale, const V3& color)
 {
     // Switch to font rendering pipeline
     D3d11DeviceContext->VSSetShader(FontVS, nullptr, 0);
@@ -481,8 +482,8 @@ void D3D11Renderer::RenderText(GameState& gameState, int w, int h,
 
     for (char c : text)
     {
-        auto it = gameState.LoadedFontGlyphs.find(c);
-        if (it == gameState.LoadedFontGlyphs.end())
+        auto it = glyphs.find(c);
+        if (it == glyphs.end())
         {
             x += 8.f * scale;
             continue;

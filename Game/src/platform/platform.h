@@ -40,5 +40,5 @@ public:
 
 	// Memory management
 	virtual void* AllocateMemory(size_t capacity) = 0;
-	virtual void FreeMemory(void* memory) = 0;
+	virtual void FreeMemory(void*& memory) = 0;
 };

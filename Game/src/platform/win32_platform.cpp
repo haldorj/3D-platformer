@@ -249,6 +249,7 @@ void Win32Platform::Shutdown()
     _XAudio2Instance->Release();
 
     CoUninitialize();
+
 }
 
 void Win32Platform::InitInput()
@@ -568,7 +569,7 @@ void* Win32Platform::AllocateMemory(size_t capacity)
         nullptr, capacity, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 }
 
-void Win32Platform::FreeMemory(void* memory)
+void Win32Platform::FreeMemory(void*& memory)
 {
     if (!memory)
         return;

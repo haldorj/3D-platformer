@@ -12,12 +12,13 @@ void Init();
 void Run();
 void Shutdown();
 
-void Move(float dt);
-void InitGame(int gameResolutionWidth, int gameResolutionHeight);
-void UploadMeshesToGPU();
-void UpdateGame(const float dt);
-void UpdateCamera(const float dt);
+void Move(float dt, GameState* gameState);
+void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameState* gameState);
+void UploadMeshesToGPU(GameState* gameState);
+void UpdateGame(const float dt, GameState* gameState);
+void UpdateCamera(const float dt, GameState* gameState);
 
+// TODO: Make a platform specific 
 std::string ReadEntireFile(const std::string& path);
 std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path, Renderer* renderer);
 
@@ -25,8 +26,7 @@ Sound GenerateSineWave(uint32_t sampleRate,
     float frequency, float durationSeconds);
 
 static GameMemory _GameMemory;
-
-static GameState _GameState;
+static GameState* _GameState;
 
 static std::unique_ptr<Platform> _Platform;
 static std::unique_ptr<Renderer> _Renderer;
@@ -36,6 +36,10 @@ static uint32_t _WindowHeight = 720;
 
 static uint32_t _GameResolutionWidth = 1280;
 static uint32_t _GameResolutionHeight = 720;
+
+static std::unordered_map<char, FontGlyph> _LoadedFontGlyphs{};
+
+std::unordered_map<char, FontGlyph> LoadedFontGlyphs{};
 
 static bool _Running{};
 
@@ -59,6 +63,14 @@ void Init()
 #endif
     Assert(_Platform && _Renderer);
 
+    _GameMemory.PermanentCapacity = Megabytes(64);
+    _GameMemory.TransientCapacity = Megabytes(256);
+
+    _GameMemory.PermanentStorage = _Platform->AllocateMemory(_GameMemory.PermanentCapacity);
+    _GameMemory.TransientStorage = _Platform->AllocateMemory(_GameMemory.TransientCapacity);
+
+    _GameState = (GameState*)_GameMemory.PermanentStorage;
+
     _Platform->InitWindow(_WindowWidth, _WindowHeight, L"Window");
 	_Platform->InitConsole();
 	_Platform->InitInput();
@@ -66,17 +78,7 @@ void Init()
     _Renderer->InitRenderer(
         _GameResolutionHeight, _GameResolutionWidth, *_Platform, _GameState);
 
-    _GameMemory.PermanentCapacity = Megabytes(64);
-    _GameMemory.TransientCapacity = Megabytes(256);
-
-    size_t totalSize = 
-        _GameMemory.PermanentCapacity + 
-        _GameMemory.TransientCapacity;
-
-    _GameMemory.PermanentStorage = _Platform->AllocateMemory(totalSize);
-    _GameMemory.TransientStorage = _Platform->AllocateMemory(totalSize);
-
-    InitGame(_GameResolutionWidth, _GameResolutionHeight);
+    InitGame(_GameResolutionWidth, _GameResolutionHeight, _GameState);
 }
 
 void Run()
@@ -107,18 +109,18 @@ void Run()
         _Platform->UpdateWindow(_Running);
 		_Platform->UpdateInput();
 
-        Move(deltaTime);
-        UpdateGame(deltaTime);
+        Move(deltaTime, _GameState);
+        UpdateGame(deltaTime, _GameState);
 
         _Renderer->RenderScene(_GameState);
 
-        _Renderer->RenderText(_GameState,
+        _Renderer->RenderText(_LoadedFontGlyphs,
             _GameResolutionWidth, _GameResolutionHeight,
             fpsStr, 0, 0, textScale, textColor);
 
         if (_EditMode)
         {
-            _Renderer->RenderText(_GameState,
+            _Renderer->RenderText(_LoadedFontGlyphs,
                 _GameResolutionWidth, _GameResolutionHeight,
                 "Edit mode", 0, 21, textScale, { 1.0f, 0.0f, 0.0f });
         }
@@ -134,43 +136,46 @@ void Run()
 
 void Shutdown()
 {
+    _Platform->FreeMemory(_GameMemory.PermanentStorage);
+    _GameMemory.PermanentCapacity = 0;
+    _Platform->FreeMemory(_GameMemory.TransientStorage);
+    _GameMemory.TransientCapacity = 0;
     _Platform->Shutdown();
 }
 
-void InitGame(int gameResolutionWidth, int gameResolutionHeight)
+void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameState* gameState)
 {
     //Camera information
-    _GameState.MainCamera.Position = { 0.0f, 3.0f, -8.0f };
+    gameState->MainCamera.Position = { 0.0f, 3.0f, -8.0f };
 
     V3 target = { 0.0f, 0.0f, 0.0f };
-	V3 direction = Normalize(target - _GameState.MainCamera.Position);
+	V3 direction = Normalize(target - gameState->MainCamera.Position);
 
-    _GameState.MainCamera.Direction = direction;
-    _GameState.MainCamera.Up = { 0.0f, 1.0f, 0.0f };
+    gameState->MainCamera.Direction = direction;
+    gameState->MainCamera.Up = { 0.0f, 1.0f, 0.0f };
 
-    _GameState.MainCamera.Pitch = asinf(direction.Y);
-    _GameState.MainCamera.Yaw = 90.0f;
+    gameState->MainCamera.Pitch = asinf(direction.Y);
+    gameState->MainCamera.Yaw = 90.0f;
 
     //Set the View matrix
-    _GameState.MainCamera.View = MatrixLookAt(
-        _GameState.MainCamera.Position, 
-        target - _GameState.MainCamera.Position,
-        _GameState.MainCamera.Up);
+    gameState->MainCamera.View = MatrixLookAt(
+        gameState->MainCamera.Position,
+        target - gameState->MainCamera.Position,
+        gameState->MainCamera.Up);
 
     //Set the Projection matrix
 	float nearPlane = 0.1f;
 	float farPlane = 1000.0f;
-    _GameState.MainCamera.Projection = MatrixPerspective(
+    gameState->MainCamera.Projection = MatrixPerspective(
         0.5f * 3.14f, static_cast<float>(gameResolutionWidth) / gameResolutionHeight, nearPlane, farPlane);
     
-    auto fontGlyphs = LoadFontGlyphs("C:/Windows/Fonts/Calibri.ttf", _Renderer.get());
-    _GameState.LoadedFontGlyphs = std::move(fontGlyphs);
+    _LoadedFontGlyphs = LoadFontGlyphs("C:/Windows/Fonts/Calibri.ttf", _Renderer.get());
 
-    _GameState.GlobalDirectionalLight.Direction = { .X = -0.25f, .Y = -0.5f, .Z = -1.0f };
-    _GameState.GlobalDirectionalLight.Ambient = { .X = 0.15f, .Y = 0.15f, .Z = 0.15f };
-    _GameState.GlobalDirectionalLight.Diffuse = { .X = 0.8f, .Y = 0.8f, .Z = 0.8f };
+    gameState->GlobalDirectionalLight.Direction = { .X = -0.25f, .Y = -0.5f, .Z = -1.0f };
+    gameState->GlobalDirectionalLight.Ambient = { .X = 0.15f, .Y = 0.15f, .Z = 0.15f };
+    gameState->GlobalDirectionalLight.Diffuse = { .X = 0.8f, .Y = 0.8f, .Z = 0.8f };
 
-    UploadMeshesToGPU();
+    UploadMeshesToGPU(_GameState);
 
     //const float frequency = 440.f, duration = 0.2f;
     //_SineWave = GenerateSineWave(_SampleRate, frequency, duration);
@@ -178,7 +183,7 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight)
     _SineWave = LoadWavFile("assets/audio/jump.wav");
 }
 
-void UploadMeshesToGPU()
+void UploadMeshesToGPU(GameState* gameState)
 {
     Assert(_Renderer);
 
@@ -192,16 +197,16 @@ void UploadMeshesToGPU()
 	//Assign the cube mesh to all entities
     for (int i = 0; i < 12; i++)
     {
-        Entity& entity = _GameState.World.Entities[i];
+        Entity& entity = gameState->World.Entities[i];
 		entity.Model = model;
 	}
 }
 
-void Move(float dt)
+void Move(float dt, GameState* gameState)
 {
     float moveSpeed = 5.0f * dt;
-    const V3& forward = Normalize(_GameState.MainCamera.Direction);
-    V3 right = Normalize(Cross(forward, _GameState.MainCamera.Up));
+    const V3& forward = Normalize(gameState->MainCamera.Direction);
+    V3 right = Normalize(Cross(forward, gameState->MainCamera.Up));
 
     if (_Platform->IsKeyDown(KeyCode::KEY_ESCAPE))
     {
@@ -209,27 +214,27 @@ void Move(float dt)
     }
     if (_Platform->IsKeyDown(KeyCode::KEY_W))
     {
-        _GameState.MainCamera.Position += forward * moveSpeed;
+        gameState->MainCamera.Position += forward * moveSpeed;
     }
     if (_Platform->IsKeyDown(KeyCode::KEY_S))
     {
-        _GameState.MainCamera.Position -= forward * moveSpeed;
+        gameState->MainCamera.Position -= forward * moveSpeed;
 	}
     if (_Platform->IsKeyDown(KeyCode::KEY_A))
     {
-        _GameState.MainCamera.Position += right * moveSpeed;
+        gameState->MainCamera.Position += right * moveSpeed;
 	}
     if (_Platform->IsKeyDown(KeyCode::KEY_D))
     {
-        _GameState.MainCamera.Position -= right * moveSpeed;
+        gameState->MainCamera.Position -= right * moveSpeed;
     }
     if (_Platform->IsKeyDown(KeyCode::KEY_SPACE))
     {
-        _GameState.MainCamera.Position.Y += moveSpeed;
+        gameState->MainCamera.Position.Y += moveSpeed;
     }
     if (_Platform->IsKeyDown(KeyCode::KEY_LEFT_CTRL))
     {
-        _GameState.MainCamera.Position.Y -= moveSpeed;
+        gameState->MainCamera.Position.Y -= moveSpeed;
     }
     if (_Platform->IsKeyPressed(KeyCode::KEY_Q))
     {
@@ -255,7 +260,7 @@ void Move(float dt)
             _Platform->SetCursorVisible(false);
 		}
 
-        UpdateCamera(dt);
+        UpdateCamera(dt, _GameState);
     }
     else
     {
@@ -269,10 +274,10 @@ void Move(float dt)
     _Platform->SetMouseDelta({ 0.0f, 0.0f });
 }
 
-void UpdateCamera(const float dt)
+void UpdateCamera(const float dt, GameState* gameState)
 {
     const V2& delta = _Platform->GetMouseDelta();
-	Camera& c = _GameState.MainCamera;
+	Camera& c = gameState->MainCamera;
 
     // Adjust yaw/pitch
     c.Yaw -= delta.X * _MouseSensitivity;
@@ -333,26 +338,26 @@ Sound GenerateSineWave(uint32_t sampleRate,
     return result;
 }
 
-void UpdateGame(const float dt)
+void UpdateGame(const float dt, GameState* gameState)
 {
     //Keep the cubes rotating
-    _GameState.Rot += 0.5f * dt;
-    if (_GameState.Rot > 6.28f)
-        _GameState.Rot = 0.0f;
+    gameState->Rot += 0.5f * dt;
+    if (gameState->Rot > 6.28f)
+        gameState->Rot = 0.0f;
 
     V3 lightDir = Normalize({ 0.5f, 1.0f, 0.5f });
-    _GameState.GlobalDirectionalLight.Ambient = { 0.4f, 0.4f, 0.4f };
-    _GameState.GlobalDirectionalLight.Color = { 1.0f, 1.0f, 1.0f };
-    _GameState.GlobalDirectionalLight.Direction = { lightDir.X, lightDir.Y, lightDir.Z, 0.0f };
+    gameState->GlobalDirectionalLight.Ambient = { 0.4f, 0.4f, 0.4f };
+    gameState->GlobalDirectionalLight.Color = { 1.0f, 1.0f, 1.0f };
+    gameState->GlobalDirectionalLight.Direction = { lightDir.X, lightDir.Y, lightDir.Z, 0.0f };
 
     for (int i = 0; i < MAX_ENTITIES; i++)
     {
-		Entity& entity = _GameState.World.Entities[i];
+		Entity& entity = gameState->World.Entities[i];
 
 		entity.WorldMatrix = MatrixIdentity();
 
 		M4 translation = MatrixTranslation(0.0f, 0.0f, i * 2.5f);
-		M4 rotation = MatrixRotationY(_GameState.Rot);
+		M4 rotation = MatrixRotationY(gameState->Rot);
 		M4 scale = MatrixScaling(1.0f, 1.0f, 1.0f);
 
 		entity.WorldMatrix = scale * translation * rotation;

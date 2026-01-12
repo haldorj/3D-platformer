@@ -70,13 +70,13 @@ struct GameWorld
 
 struct GameState
 {
+    /*
+        Cannot hold dynamic arrays or maps for now.
+    */
+
 	GameWorld World{};
-
     Camera MainCamera{};
-
-    std::unordered_map<char, FontGlyph> LoadedFontGlyphs{};
     DirectionalLight GlobalDirectionalLight{};
-
     float Rot = 0.01f;
 };
 
