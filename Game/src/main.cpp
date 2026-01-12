@@ -24,6 +24,8 @@ std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path, Rend
 Sound GenerateSineWave(uint32_t sampleRate,
     float frequency, float durationSeconds);
 
+static GameMemory _GameMemory;
+
 static GameState _GameState;
 
 static std::unique_ptr<Platform> _Platform;
@@ -63,6 +65,16 @@ void Init()
     _Platform->InitAudio();
     _Renderer->InitRenderer(
         _GameResolutionHeight, _GameResolutionWidth, *_Platform, _GameState);
+
+    _GameMemory.PermanentCapacity = Megabytes(64);
+    _GameMemory.TransientCapacity = Megabytes(256);
+
+    size_t totalSize = 
+        _GameMemory.PermanentCapacity + 
+        _GameMemory.TransientCapacity;
+
+    _GameMemory.PermanentStorage = _Platform->AllocateMemory(totalSize);
+    _GameMemory.TransientStorage = _Platform->AllocateMemory(totalSize);
 
     InitGame(_GameResolutionWidth, _GameResolutionHeight);
 }

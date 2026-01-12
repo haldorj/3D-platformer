@@ -536,7 +536,7 @@ void Win32Platform::InitVoicePool()
     for (auto& voice : _VoicePool)
     {
         HRESULT hr = _XAudio2Instance->CreateSourceVoice(&voice, &waveFormat);
-        if (FAILED(hr)) 
+        if (FAILED(hr))
         {
             std::println("Failed to create source voice (hr=0x{:08X})", hr);
             voice = nullptr;
@@ -560,6 +560,21 @@ IXAudio2SourceVoice* Win32Platform::TryGetFreeVoice()
     std::println("Warning: no source voices available (XAudio2).");
 
     return nullptr;
+}
+
+void* Win32Platform::AllocateMemory(size_t capacity)
+{
+    return VirtualAlloc(
+        nullptr, capacity, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+}
+
+void Win32Platform::FreeMemory(void* memory)
+{
+    if (!memory)
+        return;
+    
+    VirtualFree(memory, 0, MEM_RELEASE);
+    memory = nullptr;
 }
 
 #endif // _WIN32

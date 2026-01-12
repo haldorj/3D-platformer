@@ -3,13 +3,6 @@
 #include <input/input.h>
 #include <assets/sound.h>
 
-struct MemoryAllocator
-{
-	uint64_t Capacity;
-	uint64_t Size;
-	void* Storage; // Required to be cleared to zero at startup
-};
-
 // TODO: Consider splitting platform layer into smaller subsystems.
 class Platform
 {
@@ -44,4 +37,8 @@ public:
 	// Audio management
 	virtual void InitAudio() = 0;
 	virtual void PlayAudio(Sound& sound, float volume) = 0;
+
+	// Memory management
+	virtual void* AllocateMemory(size_t capacity) = 0;
+	virtual void FreeMemory(void* memory) = 0;
 };

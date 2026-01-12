@@ -3,6 +3,30 @@
 #include "math/handmade_math.h"
 #include "assets/assets.h"
 
+struct GameMemory
+{
+    /*
+
+    Permanent memory :
+
+    Allocated once never reset(only cleared on level restart or exit).
+    Used for persistent game objects, resources, etc.
+
+    Transient memory :
+
+    Reused every frame.
+    Great for pathfinding nodes, temporary meshes, collision queries, etc.
+    Prevents constant heap allocations and fragmentation.
+
+    */
+
+    void* PermanentStorage;
+    uint64_t PermanentCapacity;
+
+    void* TransientStorage;
+    uint64_t TransientCapacity;
+};
+
 struct DirectionalLight
 {
     V4 Color{};
