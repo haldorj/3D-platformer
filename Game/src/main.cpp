@@ -345,22 +345,18 @@ Entity LoadTerrain(const std::string& path, const V3& offset)
         return result;
     }
 
-    // --- Height parameters ---
     const float yScale = 0.25f;
     const float yShift = 16.0f;
 
-    // Clamp rez
     int rez = 1;
     if (rez > min(width, height)) rez = min(width, height);
 
-    // Effective grid size (after downsampling)
     const int wSteps = width / rez;
     const int hSteps = height / rez;
 
     std::vector<Vertex> vertices;
     vertices.reserve(static_cast<size_t>(wSteps * hSteps));
 
-    // --- Create vertices ---
     for (int z = 0; z < height; z += rez)
     {
         for (int x = 0; x < width; x += rez)
@@ -373,7 +369,6 @@ Entity LoadTerrain(const std::string& path, const V3& offset)
             v.Position.Y = heightValue + offset.Y;
             v.Position.Z = (-hSteps / 2.0f + (z / (float)rez)) + offset.Z;
 
-            // UVs (0–1 range)
             v.TexCoord.X = static_cast<float>(x) / (width - 1);
             v.TexCoord.Y = static_cast<float>(z) / (height - 1);
 
@@ -383,7 +378,6 @@ Entity LoadTerrain(const std::string& path, const V3& offset)
 
     std::println("Loaded {} vertices (rez = {}).", vertices.size(), rez);
 
-    // --- Generate triangle indices respecting rez ---
     std::vector<uint32_t> indices;
     indices.reserve(static_cast<size_t>((wSteps - 1) * (hSteps - 1) * 6));
 
@@ -396,12 +390,10 @@ Entity LoadTerrain(const std::string& path, const V3& offset)
             uint32_t bottomLeft = x + wSteps * (z + 1);
             uint32_t bottomRight = (x + 1) + wSteps * (z + 1);
 
-            // first triangle
             indices.push_back(topLeft);
             indices.push_back(bottomLeft);
             indices.push_back(topRight);
 
-            // second triangle
             indices.push_back(topRight);
             indices.push_back(bottomLeft);
             indices.push_back(bottomRight);
@@ -410,7 +402,6 @@ Entity LoadTerrain(const std::string& path, const V3& offset)
 
     std::println("Loaded {} indices.", indices.size());
 
-    // --- Compute normals ---
     std::vector<V3> normals(vertices.size(), { 0, 0, 0 });
 
     for (size_t i = 0; i < indices.size(); i += 3)
@@ -435,7 +426,6 @@ Entity LoadTerrain(const std::string& path, const V3& offset)
     for (size_t i = 0; i < vertices.size(); i++)
         vertices[i].Normal = Normalize(normals[i]);
 
-    // --- Copy texture data ---
     Texture tex{};
     tex.Width = width;
     tex.Height = height;
@@ -443,7 +433,6 @@ Entity LoadTerrain(const std::string& path, const V3& offset)
 
     stbi_image_free(data);
 
-    // --- Build mesh/model/entity ---
     Mesh mesh{};
     mesh.Vertices = std::move(vertices);
     mesh.Indices = std::move(indices);
@@ -556,7 +545,7 @@ std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path, Rend
             for (int x = 0; x < width; ++x)
             {
                 const unsigned char value = bitmap[y * width + x];
-                const int dst = (y * width + x) * 4;
+                const size_t dst = static_cast<size_t>(y * width + x) * 4;
                 fontTexture.Pixels[dst + 0] = 255;
                 fontTexture.Pixels[dst + 1] = 255;
                 fontTexture.Pixels[dst + 2] = 255;
