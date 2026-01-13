@@ -400,7 +400,7 @@ void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform& platfo
 
     ExitIfFailed(D3d11Device->CreateBuffer(&constantBufferDesc, nullptr, &cbPerFrameBuffer));
 
-    ConstBufferPerFrame.Light = gameState->GlobalDirectionalLight;
+    ConstBufferPerFrame.Light = gameState->World.DirectionalLight;
 
     D3d11DeviceContext->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &ConstBufferPerFrame, 0, 0);
     D3d11DeviceContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
@@ -438,7 +438,7 @@ void D3D11Renderer::RenderScene(GameState* gameState)
             //Turn off backface culling
             //D3d11DeviceContext->RSSetState(NoCull);
 
-            ConstBufferPerFrame.Light = gameState->GlobalDirectionalLight;
+            ConstBufferPerFrame.Light = gameState->World.DirectionalLight;
             D3d11DeviceContext->UpdateSubresource(cbPerFrameBuffer, 0, NULL, &ConstBufferPerFrame, 0, 0);
             D3d11DeviceContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
 

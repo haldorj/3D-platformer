@@ -164,9 +164,9 @@ Mesh ModelLoader::LoadMesh(const tinygltf::Model& model, const tinygltf::Mesh& g
         const tinygltf::Accessor& uvAccessor = model.accessors[primitive.attributes.find("TEXCOORD_0")->second];
         const tinygltf::Accessor& indexAccessor = model.accessors[primitive.indices];
 
-        std::vector<V3> positions = GetAttributeData<V3>(model, posAccessor);
-        std::vector<V3> normals = GetAttributeData<V3>(model, normalAccessor);
-        std::vector<V2> texcoords = GetAttributeData<V2>(model, uvAccessor);
+        std::vector<V3> positions = GetV3AttributeData(model, posAccessor);
+        std::vector<V3> normals = GetV3AttributeData(model, normalAccessor);
+        std::vector<V2> texcoords = GetV2AttributeData(model, uvAccessor);
 
         result.Vertices.resize(positions.size());
         for (size_t i = 0; i < positions.size(); ++i)
@@ -255,6 +255,48 @@ std::vector<uint32_t> ModelLoader::GetIndices(const tinygltf::Model& model, cons
         result.clear();
         break;
     }
+    }
+
+    return result;
+}
+
+std::vector<V2> ModelLoader::GetV2AttributeData(const tinygltf::Model& model, const tinygltf::Accessor& accessor)
+{
+    std::vector<V2> result;
+
+    const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
+    const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
+
+    size_t stride = accessor.ByteStride(bufferView);
+
+    const unsigned char* dataPtr =
+        buffer.data.data() + bufferView.byteOffset + accessor.byteOffset;
+
+    result.resize(accessor.count);
+    for (size_t i = 0; i < accessor.count; ++i)
+    {
+        std::memcpy(&result[i], dataPtr + i * stride, sizeof(V2));
+    }
+
+    return result;
+}
+
+std::vector<V3> ModelLoader::GetV3AttributeData(const tinygltf::Model& model, const tinygltf::Accessor& accessor)
+{
+    std::vector<V3> result;
+
+    const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
+    const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
+
+    size_t stride = accessor.ByteStride(bufferView);
+
+    const unsigned char* dataPtr =
+        buffer.data.data() + bufferView.byteOffset + accessor.byteOffset;
+
+    result.resize(accessor.count);
+    for (size_t i = 0; i < accessor.count; ++i)
+    {
+        std::memcpy(&result[i], dataPtr + i * stride, sizeof(V3));
     }
 
     return result;

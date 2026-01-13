@@ -9,14 +9,13 @@ struct GameMemory
 
     Permanent memory :
 
-    Allocated once never reset(only cleared on level restart or exit).
+    Allocated once never reset (only cleared on level restart or exit).
     Used for persistent game objects, resources, etc.
 
     Transient memory :
 
-    Reused every frame.
-    Great for pathfinding nodes, temporary meshes, collision queries, etc.
-    Prevents constant heap allocations and fragmentation.
+    Meant for data that can be allocated at the start of a frame
+    and cleared at the end of a frame.
 
     */
 
@@ -62,10 +61,11 @@ struct Entity
     M4 WorldMatrix{};
 };
 
-constexpr size_t MAX_ENTITIES = 1024;
+constexpr size_t MAX_ENTITIES = 128;
 struct GameWorld
 {
 	std::array<Entity, MAX_ENTITIES> Entities{};
+    DirectionalLight DirectionalLight{};
 };
 
 struct GameState
@@ -73,10 +73,8 @@ struct GameState
     /*
         Cannot hold dynamic arrays or maps for now.
     */
-
 	GameWorld World{};
+
     Camera MainCamera{};
-    DirectionalLight GlobalDirectionalLight{};
-    float Rot = 0.01f;
 };
 

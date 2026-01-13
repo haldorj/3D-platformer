@@ -8,6 +8,8 @@
 #include <renderer/d3d11_renderer.h>
 #endif
 
+#include <stb_image.h>
+
 void Init();
 void Run();
 void Shutdown();
@@ -17,6 +19,8 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameState* game
 void UploadMeshesToGPU(GameState* gameState);
 void UpdateGame(const float dt, GameState* gameState);
 void UpdateCamera(const float dt, GameState* gameState);
+
+Entity LoadTerrain(const std::string& path, const V3& offset);
 
 // TODO: Make a platform specific 
 std::string ReadEntireFile(const std::string& path);
@@ -122,7 +126,19 @@ void Run()
         {
             _Renderer->RenderText(_LoadedFontGlyphs,
                 _GameResolutionWidth, _GameResolutionHeight,
-                "Edit mode", 0, 21, textScale, { 1.0f, 0.0f, 0.0f });
+                "Edit mode", 0, 21, textScale, { 0.0f, 1.0f, 0.0f });
+
+            const std::string cameraPosStr = 
+                std::format("CameraPos: {:.2f} {:.2f} {:.2f}", 
+                    _GameState->MainCamera.Position.X,
+                    _GameState->MainCamera.Position.Y,
+                    _GameState->MainCamera.Position.Z );
+
+            textScale = 0.6f;
+
+            _Renderer->RenderText(_LoadedFontGlyphs,
+                _GameResolutionWidth, _GameResolutionHeight,
+                cameraPosStr, 0, 42, textScale, { 1.0f, 1.0f, 1.0f });
         }
 
         _Renderer->PresentSwapChain(_VSync);
@@ -146,9 +162,9 @@ void Shutdown()
 void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameState* gameState)
 {
     //Camera information
-    gameState->MainCamera.Position = { 0.0f, 3.0f, -8.0f };
+    gameState->MainCamera.Position = { 0.0f, 2.0f, -2.0f };
 
-    V3 target = { 0.0f, 0.0f, 0.0f };
+    V3 target = { 0.0f, 1.0f, 0.0f };
 	V3 direction = Normalize(target - gameState->MainCamera.Position);
 
     gameState->MainCamera.Direction = direction;
@@ -171,9 +187,9 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameState* game
     
     _LoadedFontGlyphs = LoadFontGlyphs("C:/Windows/Fonts/Calibri.ttf", _Renderer.get());
 
-    gameState->GlobalDirectionalLight.Direction = { .X = -0.25f, .Y = -0.5f, .Z = -1.0f };
-    gameState->GlobalDirectionalLight.Ambient = { .X = 0.15f, .Y = 0.15f, .Z = 0.15f };
-    gameState->GlobalDirectionalLight.Diffuse = { .X = 0.8f, .Y = 0.8f, .Z = 0.8f };
+    gameState->World.DirectionalLight.Direction = { .X = -0.25f, .Y = -0.5f, .Z = -1.0f };
+    gameState->World.DirectionalLight.Ambient = { .X = 0.15f, .Y = 0.15f, .Z = 0.15f };
+    gameState->World.DirectionalLight.Diffuse = { .X = 0.8f, .Y = 0.8f, .Z = 0.8f };
 
     UploadMeshesToGPU(_GameState);
 
@@ -195,11 +211,14 @@ void UploadMeshesToGPU(GameState* gameState)
 	}
 
 	//Assign the cube mesh to all entities
-    for (int i = 0; i < 12; i++)
+    Entity& entity = gameState->World.Entities[0];
+	entity.Model = model;
+
+    gameState->World.Entities[1] = LoadTerrain("assets/textures/terrain.png", {0.f, -20.f, 0.f});
+    for (auto& mesh : gameState->World.Entities[1].Model.Meshes)
     {
-        Entity& entity = gameState->World.Entities[i];
-		entity.Model = model;
-	}
+        _Renderer->UploadMeshesToGPU(mesh);
+    }
 }
 
 void Move(float dt, GameState* gameState)
@@ -314,6 +333,77 @@ void UpdateCamera(const float dt, GameState* gameState)
 
 }
 
+Entity LoadTerrain(const std::string& path, const V3& offset)
+{
+    Entity result{};
+
+    int width, height, nChannels;
+    unsigned char* data = 
+        stbi_load(path.c_str(), &width, &height, &nChannels, 0);
+
+    if (!data)
+    {
+        std::println("Invalid path: {}.", path);
+        return result;
+    }
+        
+    std::vector<Vertex> vertices;
+    vertices.reserve(static_cast<size_t>(width * height));
+
+    float yScale = 0.25f, yShift = 16.0f;
+    int rez = 1;
+    uint32_t bytePerPixel = nChannels;
+    for (int i = 0; i < height; i++)
+    {
+        for (int j = 0; j < width; j++)
+        {
+            unsigned char* pixelOffset = data + (j + width * i) * bytePerPixel;
+            unsigned char y = pixelOffset[0];
+
+            Vertex v{};
+            // vertex
+            v.Position.X = (-height / 2.0f + height * i / (float)height) + offset.X;    // vx
+            v.Position.Y = ((int)y * yScale - yShift) + offset.Y;                       // vy
+            v.Position.Z = (-width / 2.0f + width * j / (float)width) + offset.Z;      // vz
+
+            vertices.emplace_back(std::move(v));
+        }
+    }
+    std::println("Loaded {} vertices.", vertices.size());
+
+    std::vector<uint32_t> indices;
+    for (int i = 0; i < height - 1; i += rez)
+    {
+        for (int j = 0; j < width; j += rez)
+        {
+            for (int k = 0; k < 2; k++)
+            {
+                indices.push_back(j + width * (i + k * rez));
+            }
+        }
+    }
+    std::cout << "Loaded " << indices.size() << " indices" << std::endl;
+
+    Texture tex{};
+    tex.Height = height;
+    tex.Width = width;
+    tex.Pixels = std::vector<unsigned char>(data, data + (width * height * 4));
+
+    stbi_image_free(data);
+
+    Mesh mesh{};
+    mesh.Vertices = vertices;
+    mesh.Indices = indices;
+    mesh.Textures.push_back(tex);
+
+    Model model{};
+    model.Meshes.emplace_back(mesh);
+
+    result.Model = model;
+
+    return result;
+}
+
 Sound GenerateSineWave(uint32_t sampleRate, 
     float frequency, float durationSeconds)
 {
@@ -341,14 +431,15 @@ Sound GenerateSineWave(uint32_t sampleRate,
 void UpdateGame(const float dt, GameState* gameState)
 {
     //Keep the cubes rotating
-    gameState->Rot += 0.5f * dt;
-    if (gameState->Rot > 6.28f)
-        gameState->Rot = 0.0f;
+    static float angle = {};
+    angle += 0.5f * dt;
+    if (angle > 6.28f)
+        angle = 0.0f;
 
     V3 lightDir = Normalize({ 0.5f, 1.0f, 0.5f });
-    gameState->GlobalDirectionalLight.Ambient = { 0.4f, 0.4f, 0.4f };
-    gameState->GlobalDirectionalLight.Color = { 1.0f, 1.0f, 1.0f };
-    gameState->GlobalDirectionalLight.Direction = { lightDir.X, lightDir.Y, lightDir.Z, 0.0f };
+    gameState->World.DirectionalLight.Ambient = { 0.4f, 0.4f, 0.4f };
+    gameState->World.DirectionalLight.Color = { 1.0f, 1.0f, 1.0f };
+    gameState->World.DirectionalLight.Direction = { lightDir.X, lightDir.Y, lightDir.Z, 0.0f };
 
     for (int i = 0; i < MAX_ENTITIES; i++)
     {
@@ -357,7 +448,9 @@ void UpdateGame(const float dt, GameState* gameState)
 		entity.WorldMatrix = MatrixIdentity();
 
 		M4 translation = MatrixTranslation(0.0f, 0.0f, i * 2.5f);
-		M4 rotation = MatrixRotationY(gameState->Rot);
+        M4 rotation = MatrixIdentity();
+        if (i == 0)
+		    rotation = MatrixRotationY(angle);
 		M4 scale = MatrixScaling(1.0f, 1.0f, 1.0f);
 
 		entity.WorldMatrix = scale * translation * rotation;
