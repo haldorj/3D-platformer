@@ -214,7 +214,7 @@ void UploadMeshesToGPU(GameState* gameState)
     Entity& entity = gameState->World.Entities[0];
 	entity.Model = model;
 
-    gameState->World.Entities[1] = LoadTerrain("assets/textures/terrain.png", {0.f, -20.f, 0.f});
+    gameState->World.Entities[1] = LoadTerrain("assets/textures/terrain.png", {0.f, -21.f, 0.f});
     for (auto& mesh : gameState->World.Entities[1].Model.Meshes)
     {
         _Renderer->UploadMeshesToGPU(mesh);
@@ -338,71 +338,126 @@ Entity LoadTerrain(const std::string& path, const V3& offset)
     Entity result{};
 
     int width, height, nChannels;
-    unsigned char* data = 
-        stbi_load(path.c_str(), &width, &height, &nChannels, 0);
-
+    unsigned char* data = stbi_load(path.c_str(), &width, &height, &nChannels, 0);
     if (!data)
     {
-        std::println("Invalid path: {}.", path);
+        std::println("Failed to load heightmap: {}", path);
         return result;
     }
-        
-    std::vector<Vertex> vertices;
-    vertices.reserve(static_cast<size_t>(width * height));
 
-    float yScale = 0.25f, yShift = 16.0f;
+    // --- Height parameters ---
+    const float yScale = 0.25f;
+    const float yShift = 16.0f;
+
+    // Clamp rez
     int rez = 1;
-    uint32_t bytePerPixel = nChannels;
-    for (int i = 0; i < height; i++)
+    if (rez > min(width, height)) rez = min(width, height);
+
+    // Effective grid size (after downsampling)
+    const int wSteps = width / rez;
+    const int hSteps = height / rez;
+
+    std::vector<Vertex> vertices;
+    vertices.reserve(static_cast<size_t>(wSteps * hSteps));
+
+    // --- Create vertices ---
+    for (int z = 0; z < height; z += rez)
     {
-        for (int j = 0; j < width; j++)
+        for (int x = 0; x < width; x += rez)
         {
-            unsigned char* pixelOffset = data + (j + width * i) * bytePerPixel;
-            unsigned char y = pixelOffset[0];
+            unsigned char* pixel = data + (x + width * z) * nChannels;
+            float heightValue = static_cast<float>(pixel[0]) * yScale - yShift;
 
             Vertex v{};
-            // vertex
-            v.Position.X = (-height / 2.0f + height * i / (float)height) + offset.X;    // vx
-            v.Position.Y = ((int)y * yScale - yShift) + offset.Y;                       // vy
-            v.Position.Z = (-width / 2.0f + width * j / (float)width) + offset.Z;      // vz
+            v.Position.X = (-wSteps / 2.0f + (x / (float)rez)) + offset.X;
+            v.Position.Y = heightValue + offset.Y;
+            v.Position.Z = (-hSteps / 2.0f + (z / (float)rez)) + offset.Z;
 
-            vertices.emplace_back(std::move(v));
+            // UVs (0–1 range)
+            v.TexCoord.X = static_cast<float>(x) / (width - 1);
+            v.TexCoord.Y = static_cast<float>(z) / (height - 1);
+
+            vertices.emplace_back(v);
         }
     }
-    std::println("Loaded {} vertices.", vertices.size());
 
+    std::println("Loaded {} vertices (rez = {}).", vertices.size(), rez);
+
+    // --- Generate triangle indices respecting rez ---
     std::vector<uint32_t> indices;
-    for (int i = 0; i < height - 1; i += rez)
+    indices.reserve(static_cast<size_t>((wSteps - 1) * (hSteps - 1) * 6));
+
+    for (int z = 0; z < hSteps - 1; z++)
     {
-        for (int j = 0; j < width; j += rez)
+        for (int x = 0; x < wSteps - 1; x++)
         {
-            for (int k = 0; k < 2; k++)
-            {
-                indices.push_back(j + width * (i + k * rez));
-            }
+            uint32_t topLeft = x + wSteps * z;
+            uint32_t topRight = (x + 1) + wSteps * z;
+            uint32_t bottomLeft = x + wSteps * (z + 1);
+            uint32_t bottomRight = (x + 1) + wSteps * (z + 1);
+
+            // first triangle
+            indices.push_back(topLeft);
+            indices.push_back(bottomLeft);
+            indices.push_back(topRight);
+
+            // second triangle
+            indices.push_back(topRight);
+            indices.push_back(bottomLeft);
+            indices.push_back(bottomRight);
         }
     }
-    std::cout << "Loaded " << indices.size() << " indices" << std::endl;
 
+    std::println("Loaded {} indices.", indices.size());
+
+    // --- Compute normals ---
+    std::vector<V3> normals(vertices.size(), { 0, 0, 0 });
+
+    for (size_t i = 0; i < indices.size(); i += 3)
+    {
+        uint32_t i0 = indices[i];
+        uint32_t i1 = indices[i + 1];
+        uint32_t i2 = indices[i + 2];
+
+        const V3& v0 = vertices[i0].Position;
+        const V3& v1 = vertices[i1].Position;
+        const V3& v2 = vertices[i2].Position;
+
+        V3 e1 = v1 - v0;
+        V3 e2 = v2 - v0;
+        V3 normal = Normalize(Cross(e1, e2));
+
+        normals[i0] += normal;
+        normals[i1] += normal;
+        normals[i2] += normal;
+    }
+
+    for (size_t i = 0; i < vertices.size(); i++)
+        vertices[i].Normal = Normalize(normals[i]);
+
+    // --- Copy texture data ---
     Texture tex{};
-    tex.Height = height;
     tex.Width = width;
-    tex.Pixels = std::vector<unsigned char>(data, data + (width * height * 4));
+    tex.Height = height;
+    tex.Pixels.assign(data, data + (width * height * nChannels));
 
     stbi_image_free(data);
 
+    // --- Build mesh/model/entity ---
     Mesh mesh{};
-    mesh.Vertices = vertices;
-    mesh.Indices = indices;
-    mesh.Textures.push_back(tex);
+    mesh.Vertices = std::move(vertices);
+    mesh.Indices = std::move(indices);
+    mesh.Textures.push_back(std::move(tex));
 
     Model model{};
-    model.Meshes.emplace_back(mesh);
+    model.Meshes.emplace_back(std::move(mesh));
 
-    result.Model = model;
+    result.Model = std::move(model);
 
     return result;
 }
+
+
 
 Sound GenerateSineWave(uint32_t sampleRate, 
     float frequency, float durationSeconds)
