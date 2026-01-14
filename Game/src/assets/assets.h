@@ -16,8 +16,44 @@ struct Vertex
 
 struct BoneInfo
 {
-    M4 Matrix;
+    M4 OffsetMatrix;
+    M4 FinalTransform;
     int32_t ID;
+    std::vector<int> Children;
+};
+
+struct Skeleton 
+{
+    std::vector<BoneInfo> Bones;
+    int32_t RootBone{-1};
+};
+
+struct AnimationChannel 
+{
+    std::string Path;
+    std::vector<float> Times;
+    std::vector<V3> Translations;
+    std::vector<Quat> Rotations;
+    std::vector<V3> Scales;
+    int32_t TargetNode;
+};
+
+struct Animation 
+{
+    std::string Name;
+    std::vector<AnimationChannel> Channels;
+    float Duration;
+    float CurrentTime;
+};
+
+struct Animator
+{
+    Skeleton* TargetSkeleton = nullptr;
+    Animation* CurrentAnimation = nullptr;
+
+    float CurrentTime = 0.0f;
+    float PlaybackSpeed = 1.0f;
+    bool Looping = true;
 };
 
 struct Texture
@@ -41,5 +77,7 @@ struct Mesh
 struct Model
 {
     std::vector<Mesh> Meshes{};
-    // std::unordered_map<std::string, BoneInfo> BoneInfoMap{};
+    std::vector<Skeleton> Skeletons{};
+    std::vector<Animation> Animations;
+    Animator Animator{};
 };

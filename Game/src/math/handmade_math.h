@@ -176,6 +176,19 @@ inline float Length(const V3& a)
 	return sqrtf(a.X * a.X + a.Y * a.Y + a.Z * a.Z);
 };
 
+inline V3 V3Lerp(const V3& from, const V3& to, float t)
+{
+	// result = start * (1 - t) + end * t
+
+	V3 result{};
+
+	result.X = from.X * (1 - t) + to.X * t;
+	result.Y = from.Y * (1 - t) + to.Y * t;
+	result.Z = from.Z * (1 - t) + to.Z * t;
+
+	return result;
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //								VECTOR 4									//
 //////////////////////////////////////////////////////////////////////////////
@@ -191,6 +204,22 @@ struct Quat
 	float X, Y, Z, W;
 };
 
+inline Quat operator * (const Quat& q, const float s)
+{
+	return {q.X * s,
+			q.Y * s,
+			q.Z * s,
+			q.W * s};
+}
+
+inline Quat operator + (const Quat& q1, const Quat& q2)
+{
+	return { q1.X + q2.X,
+			q1.Y + q2.Y,
+			q1.Z + q2.Z,
+			q1.W + q2.W };
+}
+
 // Creates a quaternion that represents a rotation (in radians) around an axis.
 // NOTE: Axis must be normalized.
 inline Quat QuatFromAxisAngle(const V3 axis, const float radians)
@@ -203,6 +232,72 @@ inline Quat QuatFromAxisAngle(const V3 axis, const float radians)
 	result.Y = axis.Y * s;
 	result.Z = axis.Z * s;
 	return result;
+}
+
+inline float Dot(const Quat& from, const Quat& to)
+{
+	float dot = from.X * to.X + 
+				from.Y * to.Y + 
+				from.Z * to.Z + 
+				from.W * to.W;
+
+	return dot;
+}
+
+inline Quat NormalizeQuat(const Quat& q)
+{
+	float len = sqrtf(q.X * q.X + q.Y * q.Y + q.Z * q.Z + q.W * q.W);
+	if (len == 0.0f) return { 0,0,0,1 };
+	float inv = 1.0f / len;
+	Quat result = { q.X * inv, q.Y * inv, q.Z * inv, q.W * inv };
+
+	return result;
+}
+
+inline Quat Slerp(const Quat& from, const Quat& to, float t)
+{
+	float dot = Dot(from, to);
+
+	// If dot < 0, slerp the opposite quaternion to take the shortest path
+	Quat to1 = to;
+	if (dot < 0.0f)
+	{
+		dot = -dot;
+		to1 = { -to.X, -to.Y, -to.Z, -to.W };
+	}
+
+	// Clamp the dot to avoid NaN from acos
+	dot = std::clamp(dot, -1.0f, 1.0f);
+
+	// If quaternions are close, use linear interpolation (Lerp) to avoid division by zero
+	const float epsilon = 1e-5f;
+	if (dot > 1.0f - epsilon)
+	{
+		// Linear interpolation
+		Quat result = {
+			from.X + t * (to1.X - from.X),
+			from.Y + t * (to1.Y - from.Y),
+			from.Z + t * (to1.Z - from.Z),
+			from.W + t * (to1.W - from.W)
+		};
+		return NormalizeQuat(result);
+	}
+
+	// Compute the angle between them
+	float theta = acosf(dot);
+	float sinTheta = sinf(theta);
+
+	float w1 = sinf((1.0f - t) * theta) / sinTheta;
+	float w2 = sinf(t * theta) / sinTheta;
+
+	Quat result = {
+		from.X * w1 + to1.X * w2,
+		from.Y * w1 + to1.Y * w2,
+		from.Z * w1 + to1.Z * w2,
+		from.W * w1 + to1.W * w2
+	};
+
+	return NormalizeQuat(result);
 }
 
 //////////////////////////////////////////////////////////////////////////////

@@ -14,60 +14,12 @@ private:
     static std::vector<uint32_t> GetIndices(
         const tinygltf::Model& model, const tinygltf::Accessor& accessor);
 
+    static void PrintComponentType(int componentType);
+
     template<typename T>
     static std::vector<T>GetAttributeData(
         const tinygltf::Model& model, const tinygltf::Accessor& accessor)
     {
-        switch (accessor.componentType)
-        {
-        case TINYGLTF_COMPONENT_TYPE_BYTE:
-        {
-            std::println("\tTINYGLTF_COMPONENT_TYPE_BYTE");
-            break;
-        }
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
-        {
-            std::println("\tTINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE");
-            break;
-        }
-        case TINYGLTF_COMPONENT_TYPE_SHORT:
-        {
-            std::println("\tTINYGLTF_COMPONENT_TYPE_SHORT");
-            break;
-        }
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
-        {
-            std::println("\tTINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT");
-            break;
-        }
-        case TINYGLTF_COMPONENT_TYPE_INT:
-        {
-            std::println("\tTINYGLTF_COMPONENT_TYPE_INT");
-            break;
-        }
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
-        {
-            std::println("\tTINYGLTF_COMPONENT_TYPE_UNSIGNED_INT");
-            break;
-        }
-        case TINYGLTF_COMPONENT_TYPE_FLOAT:
-        {
-            std::println("\tTINYGLTF_COMPONENT_TYPE_FLOAT");
-            break;
-        }
-        case TINYGLTF_COMPONENT_TYPE_DOUBLE:
-        {
-            std::println("\tTINYGLTF_COMPONENT_TYPE_DOUBLE");
-            break;
-        }
-        default:
-        {
-            Assert(false);
-            break;
-        }
-   
-        }
-
         std::vector<T> result;
         result.reserve(accessor.count);
 

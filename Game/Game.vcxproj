@@ -103,6 +103,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="src\assets\animator.h" />
     <ClInclude Include="src\assets\assets.h" />
     <ClInclude Include="src\assets\model_loader.h" />
     <ClInclude Include="src\assets\sound.h" />

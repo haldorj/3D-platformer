@@ -143,29 +143,70 @@ Model ModelLoader::LoadGLTFModel(const std::string& filename)
                 mesh.Textures.push_back(textures[texIndex]);
             }
         }
-        result.Meshes.push_back(mesh);
+        result.Meshes.push_back(std::move(mesh));
     }
 
-    for (auto& s : gltfModel.skins)
+    for (auto& gltfSkin : gltfModel.skins)
     {
-        std::println("{} skeleton tree.", s.name);
-        const tinygltf::Accessor& matrixAccessor = gltfModel.accessors[s.inverseBindMatrices];
-        std::vector<M4> jointMatrices = GetAttributeData<M4>(gltfModel, matrixAccessor);
+        const auto& matrixAccessor = gltfModel.accessors[gltfSkin.inverseBindMatrices];
+        std::vector<M4> inverseBindMatrices = GetAttributeData<M4>(gltfModel, matrixAccessor);
 
-        for (int j : s.joints)
+        Skeleton skeleton{};
+        skeleton.Bones.resize(gltfSkin.joints.size());
+
+        for (size_t i = 0; i < gltfSkin.joints.size(); ++i)
         {
-            std::println("{}", gltfModel.nodes[j].name);
-            BoneInfo info{};
-            info.ID = j;
-            info.Matrix = jointMatrices[j];
-            //result.BoneInfoMap.insert({ gltfModel.nodes[j].name, info });
+            int nodeIndex = gltfSkin.joints[i];
+            BoneInfo& bone = skeleton.Bones[i];
+            bone.ID = nodeIndex;
+            bone.OffsetMatrix = inverseBindMatrices[i];
         }
+
+        // root node for this skeleton
+        skeleton.RootBone = gltfSkin.skeleton >= 0 ? gltfSkin.skeleton : gltfSkin.joints.front();
+        result.Skeletons.push_back(std::move(skeleton));
     }
 
     std::println("loading animations...");
-    for (auto& animation : gltfModel.animations)
+    for (auto& gltfAnim : gltfModel.animations)
     {
-        std::println("{}", animation.name);
+        Animation anim{};
+        anim.Name = gltfAnim.name;
+
+        for (const auto& channel : gltfAnim.channels)
+        {
+            const auto& sampler = gltfAnim.samplers[channel.sampler];
+            AnimationChannel ch{};
+            
+            // The target node, usually refers to the bone.
+            ch.TargetNode = channel.target_node;
+
+            // Path: name of the animated property.
+            // Can be "translation", "rotation" or "scale".
+            ch.Path = channel.target_path; 
+
+            // Time input, the times of the key frames.
+            const auto& timeAccessor = gltfModel.accessors[sampler.input];
+            ch.Times = GetAttributeData<float>(gltfModel, timeAccessor);
+
+            // Value output for a given key frame.
+            const auto& valueAccessor = gltfModel.accessors[sampler.output];
+            if (ch.Path == "translation")
+                ch.Translations = GetAttributeData<V3>(gltfModel, valueAccessor);
+            else if (ch.Path == "rotation")
+                ch.Rotations = GetAttributeData<Quat>(gltfModel, valueAccessor);
+            else if (ch.Path == "scale")
+                ch.Scales = GetAttributeData<V3>(gltfModel, valueAccessor);
+
+            anim.Channels.push_back(std::move(ch));
+        }
+
+        anim.Duration = 0.0f;
+        for (const auto& ch : anim.Channels)
+            if (!ch.Times.empty())
+                anim.Duration = std::max<float>(anim.Duration, ch.Times.back());
+
+        result.Animations.push_back(std::move(anim));
     }
 
     std::println("Loaded model: {} mesh(es)", result.Meshes.size());
@@ -184,7 +225,10 @@ Mesh ModelLoader::LoadMesh(const tinygltf::Model& model, const tinygltf::Mesh& g
         const tinygltf::Accessor& uvAccessor = model.accessors[primitive.attributes.find("TEXCOORD_0")->second];
         const tinygltf::Accessor& indexAccessor = model.accessors[primitive.indices];
 
+        // The JOINTS_0 attribute data contains the indices of the joints that should affect the vertex.
         const tinygltf::Accessor& jointAccessor = model.accessors[primitive.attributes.find("JOINTS_0")->second];
+        // The WEIGHTS_0 attribute data defines the weights indicating how strongly 
+        // the joint should influence the vertex.
         const tinygltf::Accessor& weightAccessor = model.accessors[primitive.attributes.find("WEIGHTS_0")->second];
 
         std::vector<V3> positions = GetAttributeData<V3>(model, posAccessor);
@@ -285,9 +329,63 @@ std::vector<uint32_t> ModelLoader::GetIndices(const tinygltf::Model& model, cons
     {
         std::println("Unsupported index component type: {}", accessor.componentType);
         result.clear();
+        Assert(false);
         break;
     }
     }
 
     return result;
+}
+
+void ModelLoader::PrintComponentType(int componentType)
+{
+    switch (componentType)
+    {
+    case TINYGLTF_COMPONENT_TYPE_BYTE:
+    {
+        std::println("\tTINYGLTF_COMPONENT_TYPE_BYTE");
+        break;
+    }
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+    {
+        std::println("\tTINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE");
+        break;
+    }
+    case TINYGLTF_COMPONENT_TYPE_SHORT:
+    {
+        std::println("\tTINYGLTF_COMPONENT_TYPE_SHORT");
+        break;
+    }
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+    {
+        std::println("\tTINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT");
+        break;
+    }
+    case TINYGLTF_COMPONENT_TYPE_INT:
+    {
+        std::println("\tTINYGLTF_COMPONENT_TYPE_INT");
+        break;
+    }
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+    {
+        std::println("\tTINYGLTF_COMPONENT_TYPE_UNSIGNED_INT");
+        break;
+    }
+    case TINYGLTF_COMPONENT_TYPE_FLOAT:
+    {
+        std::println("\tTINYGLTF_COMPONENT_TYPE_FLOAT");
+        break;
+    }
+    case TINYGLTF_COMPONENT_TYPE_DOUBLE:
+    {
+        std::println("\tTINYGLTF_COMPONENT_TYPE_DOUBLE");
+        break;
+    }
+    default:
+    {
+        Assert(false);
+        break;
+    }
+
+    }
 }

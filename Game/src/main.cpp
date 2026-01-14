@@ -2,6 +2,7 @@
 
 #include <game.h>
 #include <assets/model_loader.h>
+#include <assets/animator.h>
 
 #ifdef _WIN32
 #include <platform/win32_platform.h>
@@ -73,7 +74,7 @@ void Init()
     _GameMemory.PermanentStorage = _Platform->AllocateMemory(_GameMemory.PermanentCapacity);
     _GameMemory.TransientStorage = _Platform->AllocateMemory(_GameMemory.TransientCapacity);
 
-    _GameState = (GameState*)_GameMemory.PermanentStorage;
+    _GameState = new (_GameMemory.PermanentStorage)GameState();
 
     _Platform->InitWindow(_WindowWidth, _WindowHeight, L"Window");
 	_Platform->InitConsole();
@@ -152,6 +153,8 @@ void Run()
 
 void Shutdown()
 {
+    _GameState->~GameState();
+
     _Platform->FreeMemory(_GameMemory.PermanentStorage);
     _GameMemory.PermanentCapacity = 0;
     _Platform->FreeMemory(_GameMemory.TransientStorage);
@@ -349,7 +352,7 @@ Entity LoadTerrain(const std::string& path, const V3& offset)
     const float yShift = 16.0f;
 
     int rez = 1;
-    if (rez > min(width, height)) rez = min(width, height);
+    if (rez > std::min<int>(width, height)) rez = std::min<int>(width, height);
 
     const int wSteps = width / rez;
     const int hSteps = height / rez;

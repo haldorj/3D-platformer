@@ -51,6 +51,9 @@
     <ClInclude Include="src\renderer\renderer.h">
       <Filter>renderer</Filter>
     </ClInclude>
+    <ClInclude Include="src\assets\animator.h">
+      <Filter>assets</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\assets\model_loader.cpp">
