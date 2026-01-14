@@ -446,8 +446,6 @@ Entity LoadTerrain(const std::string& path, const V3& offset)
     return result;
 }
 
-
-
 Sound GenerateSineWave(uint32_t sampleRate, 
     float frequency, float durationSeconds)
 {

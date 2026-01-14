@@ -109,7 +109,7 @@ Model ModelLoader::LoadGLTFModel(const std::string& filename)
     }
 
     std::println("loading textures...");
-    // Load all textures
+
     std::vector<Texture> textures;
     for (auto& img : gltfModel.images)
     {
@@ -126,12 +126,10 @@ Model ModelLoader::LoadGLTFModel(const std::string& filename)
     }
 
     std::println("loading meshes...");
-    // Load all meshes
+
     for (auto& gltfMesh : gltfModel.meshes)
     {
         Mesh mesh = LoadMesh(gltfModel, gltfMesh);
-
-        // Attach textures if referenced
         for (auto& prim : gltfMesh.primitives)
         {
             if (prim.material < 0)
@@ -146,6 +144,28 @@ Model ModelLoader::LoadGLTFModel(const std::string& filename)
             }
         }
         result.Meshes.push_back(mesh);
+    }
+
+    for (auto& s : gltfModel.skins)
+    {
+        std::println("{} skeleton tree.", s.name);
+        const tinygltf::Accessor& matrixAccessor = gltfModel.accessors[s.inverseBindMatrices];
+        std::vector<M4> jointMatrices = GetAttributeData<M4>(gltfModel, matrixAccessor);
+
+        for (int j : s.joints)
+        {
+            std::println("{}", gltfModel.nodes[j].name);
+            BoneInfo info{};
+            info.ID = j;
+            info.Matrix = jointMatrices[j];
+            //result.BoneInfoMap.insert({ gltfModel.nodes[j].name, info });
+        }
+    }
+
+    std::println("loading animations...");
+    for (auto& animation : gltfModel.animations)
+    {
+        std::println("{}", animation.name);
     }
 
     std::println("Loaded model: {} mesh(es)", result.Meshes.size());
@@ -164,20 +184,32 @@ Mesh ModelLoader::LoadMesh(const tinygltf::Model& model, const tinygltf::Mesh& g
         const tinygltf::Accessor& uvAccessor = model.accessors[primitive.attributes.find("TEXCOORD_0")->second];
         const tinygltf::Accessor& indexAccessor = model.accessors[primitive.indices];
 
-        std::vector<V3> positions = GetV3AttributeData(model, posAccessor);
-        std::vector<V3> normals = GetV3AttributeData(model, normalAccessor);
-        std::vector<V2> texcoords = GetV2AttributeData(model, uvAccessor);
+        const tinygltf::Accessor& jointAccessor = model.accessors[primitive.attributes.find("JOINTS_0")->second];
+        const tinygltf::Accessor& weightAccessor = model.accessors[primitive.attributes.find("WEIGHTS_0")->second];
+
+        std::vector<V3> positions = GetAttributeData<V3>(model, posAccessor);
+        std::vector<V3> normals = GetAttributeData<V3>(model, normalAccessor);
+        std::vector<V2> texcoords = GetAttributeData<V2>(model, uvAccessor);
+
+        std::vector<std::array<uint32_t, 4>> joints = 
+            GetAttributeData<std::array<uint32_t, 4>>(model, jointAccessor);
+
+        std::vector<std::array<float, 4>> weights = 
+            GetAttributeData<std::array<float, 4>>(model, weightAccessor);
 
         result.Vertices.resize(positions.size());
         for (size_t i = 0; i < positions.size(); ++i)
         {
-            result.Vertices[i].Position = positions[i];
+            Vertex& v = result.Vertices[i];
+            v.Position = positions[i];
+            if (i < normals.size()) v.Normal = normals[i];
+            if (i < texcoords.size()) v.TexCoord = texcoords[i];
 
-            if (i < normals.size())
-                result.Vertices[i].Normal = normals[i];
-
-            if (i < texcoords.size())
-                result.Vertices[i].TexCoord = texcoords[i];
+            for (int j = 0; j < MAX_BONE_INFLUENCE; ++j)
+            {
+                v.BoneIDs[j] = joints[i][j];
+                v.Weights[j] = weights[i][j];
+            }
         }
 
         result.Indices = GetIndices(model, indexAccessor);
@@ -255,48 +287,6 @@ std::vector<uint32_t> ModelLoader::GetIndices(const tinygltf::Model& model, cons
         result.clear();
         break;
     }
-    }
-
-    return result;
-}
-
-std::vector<V2> ModelLoader::GetV2AttributeData(const tinygltf::Model& model, const tinygltf::Accessor& accessor)
-{
-    std::vector<V2> result;
-
-    const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
-    const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
-
-    size_t stride = accessor.ByteStride(bufferView);
-
-    const unsigned char* dataPtr =
-        buffer.data.data() + bufferView.byteOffset + accessor.byteOffset;
-
-    result.resize(accessor.count);
-    for (size_t i = 0; i < accessor.count; ++i)
-    {
-        std::memcpy(&result[i], dataPtr + i * stride, sizeof(V2));
-    }
-
-    return result;
-}
-
-std::vector<V3> ModelLoader::GetV3AttributeData(const tinygltf::Model& model, const tinygltf::Accessor& accessor)
-{
-    std::vector<V3> result;
-
-    const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
-    const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
-
-    size_t stride = accessor.ByteStride(bufferView);
-
-    const unsigned char* dataPtr =
-        buffer.data.data() + bufferView.byteOffset + accessor.byteOffset;
-
-    result.resize(accessor.count);
-    for (size_t i = 0; i < accessor.count; ++i)
-    {
-        std::memcpy(&result[i], dataPtr + i * stride, sizeof(V3));
     }
 
     return result;

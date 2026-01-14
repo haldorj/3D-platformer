@@ -17,6 +17,7 @@ cbuffer cbPerObject
     float4x4 View;
     float4x4 World;
     float4 Color;
+    float4x4 GlobalBoneTransform;
 };
 
 struct PSInput
@@ -24,16 +25,26 @@ struct PSInput
     float4 position : SV_POSITION;
     float4 normal   : NORMAL;
     float2 texCoord : TEXCOORD;
+    int4 boneIDs : BONEIDS;
+    float4 weights : WEIGHTS;
 };
 
 Texture2D g_texture : register(t0);
 SamplerState g_sampler : register(s0);
 
-PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 texCoord : TEXCOORD)
+PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 texCoord : TEXCOORD,
+               int4 boneIDs : BONEIDS, float4 weights : WEIGHTS)
 {
     PSInput result;
 
     float3 worldNormal = normalize(mul((float3x3) World, normal.xyz));
+    
+    //float3 adjustedPos = 0;
+    //for (int i = 0; i < 4; ++i)
+    //{
+    //    float4x3 boneTransform = GlobalBoneTransform[boneIDs[i]];
+    //    adjustedPos += weights[i] * mul(boneTransform, position.xyz);
+    //}
     
     result.position = mul(Projection, mul(View, mul(World, position)));
     result.normal = float4(worldNormal, 1.0f);
