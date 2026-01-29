@@ -3,9 +3,9 @@
 #include <math/handmade_math.h>
 #include <assets/assets.h>
 
-void UpdateAnimation(Skeleton& skeleton, const Animation& animation, float time);
+void UpdateAnimation(Animator& animator, float time);
 
-static V3 InterpolateVec3(const std::vector<float>& times, const std::vector<V3>& values, float time)
+static V3 InterpolateVec3(const std::span<float> times, const std::span<V3> values, float time)
 {
     if (times.empty() || values.empty())
         return {};
@@ -24,7 +24,7 @@ static V3 InterpolateVec3(const std::vector<float>& times, const std::vector<V3>
     return values.back();
 }
 
-static Quat InterpolateQuat(const std::vector<float>& times, const std::vector<Quat>& values, float time)
+static Quat InterpolateQuat(const std::span<float> times, const std::span<Quat> values, float time)
 {
     if (times.empty() || values.empty())
         return {};
@@ -72,21 +72,23 @@ static void UpdateAnimator(Animator& animator, float deltaTime)
             std::min<float>(animator.CurrentTime, animator.CurrentAnimation->Duration);
     }
 
-    UpdateAnimation(*animator.TargetSkeleton, *animator.CurrentAnimation, animator.CurrentTime);
+    UpdateAnimation(animator, animator.CurrentTime);
 }
 
-void UpdateAnimation(Skeleton& skeleton, const Animation& animation, float time)
+void UpdateAnimation(Animator& animator, float time)
 {
-    std::vector<M4> nodeTransforms(skeleton.Bones.size(), { 1.0f });
+    animator.FinalBoneTransforms.clear();
+    animator.FinalBoneTransforms.resize(animator.TargetSkeleton->Bones.size(), MatrixIdentity());
 
-    for (auto& channel : animation.Channels)
+    for (auto& channel : animator.CurrentAnimation->Channels)
     {
         int node = channel.TargetNode;
         V3 t = InterpolateVec3(channel.Times, channel.Translations, time);
         Quat r = InterpolateQuat(channel.Times, channel.Rotations, time);
         V3 s = InterpolateVec3(channel.Times, channel.Scales, time);
 
-        nodeTransforms[node] = MatrixTranslation(t.X, t.Y, t.Z) *
+        animator.FinalBoneTransforms[node] =
+            MatrixTranslation(t.X, t.Y, t.Z) *
             MatrixFromQuaternion(r) *
             MatrixScaling(s.X, s.Y, s.Z);
     }
@@ -94,14 +96,14 @@ void UpdateAnimation(Skeleton& skeleton, const Animation& animation, float time)
     std::function<void(int, const M4&)> UpdateNodeTransform =
         [&](int boneIndex, const M4& parentTransform)
         {
-            BoneInfo& bone = skeleton.Bones[boneIndex];
-            M4 global = parentTransform * nodeTransforms[bone.ID];
+            BoneInfo& bone = animator.TargetSkeleton->Bones[boneIndex];
+            M4 global = parentTransform * animator.FinalBoneTransforms[bone.ID];
             bone.FinalTransform = global * bone.OffsetMatrix;
 
             for (int child : bone.Children)
                 UpdateNodeTransform(child, global);
         };
 
-    if (skeleton.RootBone >= 0)
-        UpdateNodeTransform(skeleton.RootBone, { 1.0f });
+    if (animator.TargetSkeleton->RootBone >= 0)
+        UpdateNodeTransform(animator.TargetSkeleton->RootBone, MatrixIdentity());
 }

@@ -6,6 +6,7 @@ using Microsoft::WRL::ComPtr;
 
 struct CbPerObject
 {
+    std::array<M4, 100> FinalBoneTransforms{};
     M4 Projection{};
     M4 View{};
     M4 World{};

@@ -48,6 +48,7 @@ struct Animation
 
 struct Animator
 {
+    std::vector<M4> FinalBoneTransforms;
     Skeleton* TargetSkeleton = nullptr;
     Animation* CurrentAnimation = nullptr;
 

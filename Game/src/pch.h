@@ -34,6 +34,7 @@
 #include <chrono>
 #include <memory>
 #include <algorithm>
+#include <span>
 
 //////////////////////////////////////////
 // Third party includes					//

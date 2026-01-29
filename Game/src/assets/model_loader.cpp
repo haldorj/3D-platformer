@@ -65,6 +65,7 @@ static Texture LoadTextureFromFile(const std::string& path)
     texture.Width = width;
     texture.Height = height;
     texture.Pixels = std::vector<unsigned char>(data, data + (width * height * 4));
+    stbi_image_free(data);
     return texture;
 }
 
@@ -154,16 +155,31 @@ Model ModelLoader::LoadGLTFModel(const std::string& filename)
         Skeleton skeleton{};
         skeleton.Bones.resize(gltfSkin.joints.size());
 
+        std::unordered_map<int, int> nodeToBoneIndex;
+        for (size_t i = 0; i < gltfSkin.joints.size(); ++i)
+            nodeToBoneIndex[gltfSkin.joints[i]] = static_cast<int>(i);
+
         for (size_t i = 0; i < gltfSkin.joints.size(); ++i)
         {
             int nodeIndex = gltfSkin.joints[i];
             BoneInfo& bone = skeleton.Bones[i];
             bone.ID = nodeIndex;
             bone.OffsetMatrix = inverseBindMatrices[i];
+            bone.Children.clear();
+
+            const auto& node = gltfModel.nodes[nodeIndex];
+            for (int childNode : node.children)
+            {
+                auto it = nodeToBoneIndex.find(childNode);
+                if (it != nodeToBoneIndex.end())
+                    bone.Children.push_back(it->second);
+            }
         }
 
-        // root node for this skeleton
-        skeleton.RootBone = gltfSkin.skeleton >= 0 ? gltfSkin.skeleton : gltfSkin.joints.front();
+        skeleton.RootBone = gltfSkin.skeleton >= 0
+            ? nodeToBoneIndex[gltfSkin.skeleton]
+            : 0;
+
         result.Skeletons.push_back(std::move(skeleton));
     }
 

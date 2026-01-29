@@ -13,11 +13,11 @@ cbuffer cbPerFrame
 
 cbuffer cbPerObject
 {
+    float4x4 GlobalBoneTransform[100];
     float4x4 Projection;
     float4x4 View;
     float4x4 World;
     float4 Color;
-    float4x4 GlobalBoneTransform;
 };
 
 struct PSInput
@@ -39,14 +39,15 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 texCoo
 
     float3 worldNormal = normalize(mul((float3x3) World, normal.xyz));
     
-    //float3 adjustedPos = 0;
-    //for (int i = 0; i < 4; ++i)
-    //{
-    //    float4x3 boneTransform = GlobalBoneTransform[boneIDs[i]];
-    //    adjustedPos += weights[i] * mul(boneTransform, position.xyz);
-    //}
+    float4 skinnedPos = float4(0.0, 0.0, 0.0, 0.0);
+    for (int i = 0; i < 4; ++i)
+    {
+        uint boneIndex = boneIDs[i];
+        skinnedPos += weights[i] * mul(position, GlobalBoneTransform[boneIndex]);
+    }
+    float4 worldPos = mul(position, World);
     
-    result.position = mul(Projection, mul(View, mul(World, position)));
+    result.position = mul(Projection, mul(View, worldPos));
     result.normal = float4(worldNormal, 1.0f);
     result.texCoord = texCoord;
 

@@ -18,6 +18,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\assets\animator.h">
+      <Filter>assets</Filter>
+    </ClInclude>
     <ClInclude Include="src\assets\assets.h">
       <Filter>assets</Filter>
     </ClInclude>
@@ -50,9 +53,6 @@
     </ClInclude>
     <ClInclude Include="src\renderer\renderer.h">
       <Filter>renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="src\assets\animator.h">
-      <Filter>assets</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -450,6 +450,9 @@ void D3D11Renderer::RenderScene(GameState* gameState)
             CbPerObj.View = gameState->MainCamera.View;
             CbPerObj.World = entity.WorldMatrix;
 
+            auto& vec =  entity.Model.Animator.FinalBoneTransforms;
+            std::copy(vec.begin(), vec.end(), CbPerObj.FinalBoneTransforms.begin());
+
             D3d11DeviceContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
             D3d11DeviceContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
             ID3D11ShaderResourceView* textureView = static_cast<ID3D11ShaderResourceView*>(mesh.TextureViews[0]);
