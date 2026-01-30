@@ -203,8 +203,8 @@ void UploadMeshesToGPU(GameMemory* gameState)
     Entity& entity = gameState->World.Entities[0];
 	entity.Model = model;
 
-    //PlayAnimation(entity.Model.Animator,
-    //    &entity.Model.Animations[0], &entity.Model.Skeletons[0], 1.0f, true);
+    PlayAnimation(entity.Model.Animator,
+        &entity.Model.Animations[0], &entity.Model.Skeletons[0], 1.0f, true);
 
     gameState->World.Entities[1] = LoadTerrain("assets/textures/terrain.png", {0.f, -21.f, 0.f});
     for (auto& mesh : gameState->World.Entities[1].Model.Meshes)
@@ -479,7 +479,7 @@ void UpdateGame(const float dt, GameMemory* gameState)
     {
 		Entity& entity = gameState->World.Entities[i];
 
-        //UpdateAnimator(entity.Model.Animator, dt);
+        UpdateAnimator(entity.Model.Animator, dt);
 
 		M4 translation = MatrixTranslation(0.0f, 0.0f, i * 2.5f);
         M4 rotation = MatrixIdentity();

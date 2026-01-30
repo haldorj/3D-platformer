@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-constexpr float PI_32 = 3.14159265359f;
+static constexpr float PI_32 = 3.14159265359f;
 
 struct V2
 {
@@ -17,6 +17,11 @@ struct V3
 struct V4
 {
 	float X, Y, Z, W;
+};
+
+struct IV4
+{
+	int32_t X, Y, Z, W;
 };
 
 struct M4

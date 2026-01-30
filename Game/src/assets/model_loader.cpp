@@ -250,12 +250,8 @@ Mesh ModelLoader::LoadMesh(const tinygltf::Model& model, const tinygltf::Mesh& g
         std::vector<V3> positions = GetAttributeData<V3>(model, posAccessor);
         std::vector<V3> normals = GetAttributeData<V3>(model, normalAccessor);
         std::vector<V2> texcoords = GetAttributeData<V2>(model, uvAccessor);
-
-        std::vector<std::array<uint32_t, 4>> joints = 
-            GetAttributeData<std::array<uint32_t, 4>>(model, jointAccessor);
-
-        std::vector<std::array<float, 4>> weights = 
-            GetAttributeData<std::array<float, 4>>(model, weightAccessor);
+        std::vector<IV4> joints = GetAttributeData<IV4>(model, jointAccessor);
+        std::vector<V4> weights = GetAttributeData<V4>(model, weightAccessor);
 
         result.Vertices.resize(positions.size());
         for (size_t i = 0; i < positions.size(); ++i)
@@ -264,12 +260,8 @@ Mesh ModelLoader::LoadMesh(const tinygltf::Model& model, const tinygltf::Mesh& g
             v.Position = positions[i];
             if (i < normals.size()) v.Normal = normals[i];
             if (i < texcoords.size()) v.TexCoord = texcoords[i];
-
-            for (int j = 0; j < MAX_BONE_INFLUENCE; ++j)
-            {
-                //v.BoneIDs[j] = joints[i][j];
-                //v.Weights[j] = weights[i][j];
-            }
+            if (i < joints.size()) v.BoneIDs = joints[i];
+            if (i < weights.size()) v.Weights = weights[i];
         }
 
         result.Indices = GetIndices(model, indexAccessor);

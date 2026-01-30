@@ -10,8 +10,8 @@ struct Vertex
     V3 Normal{};
     V2 TexCoord{};
 
-    //std::array<int32_t, MAX_BONE_INFLUENCE> BoneIDs{};
-    //std::array<float, MAX_BONE_INFLUENCE> Weights{};
+    IV4 BoneIDs{};
+    V4 Weights{};
 };
 
 struct BoneInfo
