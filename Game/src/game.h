@@ -3,29 +3,6 @@
 #include "math/handmade_math.h"
 #include "assets/assets.h"
 
-struct GameMemory
-{
-    /*
-
-    Permanent memory :
-
-    Allocated once never reset (only cleared on level restart or exit).
-    Used for persistent game objects, resources, etc.
-
-    Transient memory :
-
-    Meant for data that can be allocated at the start of a frame
-    and cleared at the end of a frame.
-
-    */
-
-    void* PermanentStorage;
-    uint64_t PermanentCapacity;
-
-    void* TransientStorage;
-    uint64_t TransientCapacity;
-};
-
 struct DirectionalLight
 {
     V4 Color{};
@@ -68,13 +45,9 @@ struct GameWorld
     DirectionalLight DirectionalLight{};
 };
 
-struct GameState
+struct GameMemory
 {
-    /*
-        Cannot hold dynamic arrays or maps for now.
-    */
 	GameWorld World{};
-
     Camera MainCamera{};
 };
 

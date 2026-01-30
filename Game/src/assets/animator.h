@@ -77,9 +77,6 @@ static void UpdateAnimator(Animator& animator, float deltaTime)
 
 void UpdateAnimation(Animator& animator, float time)
 {
-    animator.FinalBoneTransforms.clear();
-    animator.FinalBoneTransforms.resize(animator.TargetSkeleton->Bones.size(), MatrixIdentity());
-
     for (auto& channel : animator.CurrentAnimation->Channels)
     {
         int node = channel.TargetNode;

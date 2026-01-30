@@ -10,16 +10,18 @@ struct Vertex
     V3 Normal{};
     V2 TexCoord{};
 
-    std::array<int32_t, MAX_BONE_INFLUENCE> BoneIDs{};
-    std::array<float, MAX_BONE_INFLUENCE> Weights{};
+    //std::array<int32_t, MAX_BONE_INFLUENCE> BoneIDs{};
+    //std::array<float, MAX_BONE_INFLUENCE> Weights{};
 };
 
 struct BoneInfo
 {
-    M4 OffsetMatrix;
-    M4 FinalTransform;
-    int32_t ID;
-    std::vector<int> Children;
+    M4 OffsetMatrix{};
+    M4 FinalTransform{};
+    // Bones connected to this bone.
+    std::vector<int> Children{};
+
+    int32_t ID{};
 };
 
 struct Skeleton 
@@ -30,31 +32,31 @@ struct Skeleton
 
 struct AnimationChannel 
 {
-    std::string Path;
-    std::vector<float> Times;
-    std::vector<V3> Translations;
-    std::vector<Quat> Rotations;
-    std::vector<V3> Scales;
-    int32_t TargetNode;
+    std::string Path{};
+    std::vector<float> Times{};
+    std::vector<V3> Translations{};
+    std::vector<Quat> Rotations{};
+    std::vector<V3> Scales{};
+    int32_t TargetNode{};
 };
 
 struct Animation 
 {
-    std::string Name;
-    std::vector<AnimationChannel> Channels;
-    float Duration;
-    float CurrentTime;
+    std::string Name{};
+    std::vector<AnimationChannel> Channels{};
+    float Duration{};
+    float CurrentTime{};
 };
 
 struct Animator
 {
-    std::vector<M4> FinalBoneTransforms;
-    Skeleton* TargetSkeleton = nullptr;
-    Animation* CurrentAnimation = nullptr;
+    std::array<M4, 100> FinalBoneTransforms{};
+    Skeleton* TargetSkeleton{};
+    Animation* CurrentAnimation{};
 
-    float CurrentTime = 0.0f;
-    float PlaybackSpeed = 1.0f;
-    bool Looping = true;
+    float CurrentTime{};
+    float PlaybackSpeed{1.0f};
+    bool Looping{true};
 };
 
 struct Texture
@@ -79,6 +81,6 @@ struct Model
 {
     std::vector<Mesh> Meshes{};
     std::vector<Skeleton> Skeletons{};
-    std::vector<Animation> Animations;
+    std::vector<Animation> Animations{};
     Animator Animator{};
 };

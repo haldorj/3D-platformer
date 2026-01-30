@@ -15,23 +15,22 @@ void Init();
 void Run();
 void Shutdown();
 
-void Move(float dt, GameState* gameState);
-void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameState* gameState);
-void UploadMeshesToGPU(GameState* gameState);
-void UpdateGame(const float dt, GameState* gameState);
-void UpdateCamera(const float dt, GameState* gameState);
+void Move(float dt, GameMemory* gameState);
+void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameMemory* gameState);
+void UploadMeshesToGPU(GameMemory* gameState);
+void UpdateGame(const float dt, GameMemory* gameState);
+void UpdateCamera(const float dt, GameMemory* gameState);
 
 Entity LoadTerrain(const std::string& path, const V3& offset);
 
-// TODO: Make a platform specific 
+// TODO: Make a platform specific read file function.
 std::string ReadEntireFile(const std::string& path);
 std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path, Renderer* renderer);
 
 Sound GenerateSineWave(uint32_t sampleRate,
     float frequency, float durationSeconds);
 
-static GameMemory _GameMemory;
-static GameState* _GameState;
+static std::unique_ptr<GameMemory> _GameState;
 
 static std::unique_ptr<Platform> _Platform;
 static std::unique_ptr<Renderer> _Renderer;
@@ -68,22 +67,16 @@ void Init()
 #endif
     Assert(_Platform && _Renderer);
 
-    _GameMemory.PermanentCapacity = Megabytes(64);
-    _GameMemory.TransientCapacity = Megabytes(256);
-
-    _GameMemory.PermanentStorage = _Platform->AllocateMemory(_GameMemory.PermanentCapacity);
-    _GameMemory.TransientStorage = _Platform->AllocateMemory(_GameMemory.TransientCapacity);
-
-    _GameState = new (_GameMemory.PermanentStorage)GameState();
+    _GameState = std::make_unique<GameMemory>();
 
     _Platform->InitWindow(_WindowWidth, _WindowHeight, L"Window");
 	_Platform->InitConsole();
 	_Platform->InitInput();
     _Platform->InitAudio();
     _Renderer->InitRenderer(
-        _GameResolutionHeight, _GameResolutionWidth, *_Platform, _GameState);
+        _GameResolutionHeight, _GameResolutionWidth, *_Platform, _GameState.get());
 
-    InitGame(_GameResolutionWidth, _GameResolutionHeight, _GameState);
+    InitGame(_GameResolutionWidth, _GameResolutionHeight, _GameState.get());
 }
 
 void Run()
@@ -114,10 +107,10 @@ void Run()
         _Platform->UpdateWindow(_Running);
 		_Platform->UpdateInput();
 
-        Move(deltaTime, _GameState);
-        UpdateGame(deltaTime, _GameState);
+        Move(deltaTime, _GameState.get());
+        UpdateGame(deltaTime, _GameState.get());
 
-        _Renderer->RenderScene(_GameState);
+        _Renderer->RenderScene(_GameState.get());
 
         _Renderer->RenderText(_LoadedFontGlyphs,
             _GameResolutionWidth, _GameResolutionHeight,
@@ -131,9 +124,9 @@ void Run()
 
             const std::string cameraPosStr = 
                 std::format("CameraPos: {:.2f} {:.2f} {:.2f}", 
-                    _GameState->MainCamera.Position.X,
-                    _GameState->MainCamera.Position.Y,
-                    _GameState->MainCamera.Position.Z );
+                    _GameState.get()->MainCamera.Position.X,
+                    _GameState.get()->MainCamera.Position.Y,
+                    _GameState.get()->MainCamera.Position.Z );
 
             textScale = 0.6f;
 
@@ -153,16 +146,10 @@ void Run()
 
 void Shutdown()
 {
-    _GameState->~GameState();
-
-    _Platform->FreeMemory(_GameMemory.PermanentStorage);
-    _GameMemory.PermanentCapacity = 0;
-    _Platform->FreeMemory(_GameMemory.TransientStorage);
-    _GameMemory.TransientCapacity = 0;
     _Platform->Shutdown();
 }
 
-void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameState* gameState)
+void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameMemory* gameState)
 {
     //Camera information
     gameState->MainCamera.Position = { 0.0f, 2.0f, -2.0f };
@@ -194,7 +181,7 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameState* game
     gameState->World.DirectionalLight.Ambient = { .X = 0.15f, .Y = 0.15f, .Z = 0.15f };
     gameState->World.DirectionalLight.Diffuse = { .X = 0.8f, .Y = 0.8f, .Z = 0.8f };
 
-    UploadMeshesToGPU(_GameState);
+    UploadMeshesToGPU(_GameState.get());
 
     //const float frequency = 440.f, duration = 0.2f;
     //_SineWave = GenerateSineWave(_SampleRate, frequency, duration);
@@ -202,7 +189,7 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameState* game
     _SineWave = LoadWavFile("assets/audio/jump.wav");
 }
 
-void UploadMeshesToGPU(GameState* gameState)
+void UploadMeshesToGPU(GameMemory* gameState)
 {
     Assert(_Renderer);
 
@@ -213,13 +200,11 @@ void UploadMeshesToGPU(GameState* gameState)
         _Renderer->UploadMeshesToGPU(mesh);
 	}
 
-
-	//Assign the cube mesh to all entities
     Entity& entity = gameState->World.Entities[0];
 	entity.Model = model;
 
-    PlayAnimation(entity.Model.Animator,
-        &entity.Model.Animations[0], &entity.Model.Skeletons[0], 1.0f, true);
+    //PlayAnimation(entity.Model.Animator,
+    //    &entity.Model.Animations[0], &entity.Model.Skeletons[0], 1.0f, true);
 
     gameState->World.Entities[1] = LoadTerrain("assets/textures/terrain.png", {0.f, -21.f, 0.f});
     for (auto& mesh : gameState->World.Entities[1].Model.Meshes)
@@ -228,7 +213,7 @@ void UploadMeshesToGPU(GameState* gameState)
     }
 }
 
-void Move(float dt, GameState* gameState)
+void Move(float dt, GameMemory* gameState)
 {
     float moveSpeed = 5.0f * dt;
     const V3& forward = Normalize(gameState->MainCamera.Direction);
@@ -286,7 +271,7 @@ void Move(float dt, GameState* gameState)
             _Platform->SetCursorVisible(false);
 		}
 
-        UpdateCamera(dt, _GameState);
+        UpdateCamera(dt, _GameState.get());
     }
     else
     {
@@ -300,7 +285,7 @@ void Move(float dt, GameState* gameState)
     _Platform->SetMouseDelta({ 0.0f, 0.0f });
 }
 
-void UpdateCamera(const float dt, GameState* gameState)
+void UpdateCamera(const float dt, GameMemory* gameState)
 {
     const V2& delta = _Platform->GetMouseDelta();
 	Camera& c = gameState->MainCamera;
@@ -443,7 +428,7 @@ Entity LoadTerrain(const std::string& path, const V3& offset)
     Mesh mesh{};
     mesh.Vertices = std::move(vertices);
     mesh.Indices = std::move(indices);
-    mesh.Textures.push_back(std::move(tex));
+    mesh.Textures.emplace_back(std::move(tex));
 
     Model model{};
     model.Meshes.emplace_back(std::move(mesh));
@@ -477,7 +462,7 @@ Sound GenerateSineWave(uint32_t sampleRate,
     return result;
 }
 
-void UpdateGame(const float dt, GameState* gameState)
+void UpdateGame(const float dt, GameMemory* gameState)
 {
     //Keep the cubes rotating
     static float angle = {};
@@ -494,7 +479,7 @@ void UpdateGame(const float dt, GameState* gameState)
     {
 		Entity& entity = gameState->World.Entities[i];
 
-        UpdateAnimator(entity.Model.Animator, dt);
+        //UpdateAnimator(entity.Model.Animator, dt);
 
 		M4 translation = MatrixTranslation(0.0f, 0.0f, i * 2.5f);
         M4 rotation = MatrixIdentity();

@@ -267,8 +267,8 @@ Mesh ModelLoader::LoadMesh(const tinygltf::Model& model, const tinygltf::Mesh& g
 
             for (int j = 0; j < MAX_BONE_INFLUENCE; ++j)
             {
-                v.BoneIDs[j] = joints[i][j];
-                v.Weights[j] = weights[i][j];
+                //v.BoneIDs[j] = joints[i][j];
+                //v.Weights[j] = weights[i][j];
             }
         }
 

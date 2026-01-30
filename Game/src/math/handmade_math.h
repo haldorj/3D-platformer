@@ -24,11 +24,16 @@ struct M4
 	float M[4][4] = { 0 };
 };
 
-inline float DegreesToRadians(float degrees)
+inline float DegreesToRadians(const float degrees)
 {
 	// 3.14159265359f / 180.0f = 0.01745329252f
-
 	return degrees * (0.01745329251f);
+}
+
+inline float RadiansToDegrees(const float radians)
+{
+	// 3.14159265359f / 180.0f = 0.01745329252f
+	return radians / 0.01745329252f;
 }
 
 //////////////////////////////////////////////////////////////////////////////

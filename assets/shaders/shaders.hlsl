@@ -32,20 +32,20 @@ struct PSInput
 Texture2D g_texture : register(t0);
 SamplerState g_sampler : register(s0);
 
-PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 texCoord : TEXCOORD,
-               int4 boneIDs : BONEIDS, float4 weights : WEIGHTS)
+PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 texCoord : TEXCOORD)//,
+               //int4 boneIDs : BONEIDS, float4 weights : WEIGHTS)
 {
     PSInput result;
 
     float3 worldNormal = normalize(mul((float3x3) World, normal.xyz));
     
-    float4 skinnedPos = float4(0.0, 0.0, 0.0, 0.0);
-    for (int i = 0; i < 4; ++i)
-    {
-        uint boneIndex = boneIDs[i];
-        skinnedPos += weights[i] * mul(position, GlobalBoneTransform[boneIndex]);
-    }
-    float4 worldPos = mul(position, World);
+    //float4 skinnedPos = float4(0.0, 0.0, 0.0, 0.0);
+    //for (int i = 0; i < 4; ++i)
+    //{
+    //    uint boneIndex = boneIDs[i];
+    //    skinnedPos += weights[i] * mul(position, GlobalBoneTransform[boneIndex]);
+    //}
+    float4 worldPos = mul(World, position);
     
     result.position = mul(Projection, mul(View, worldPos));
     result.normal = float4(worldNormal, 1.0f);

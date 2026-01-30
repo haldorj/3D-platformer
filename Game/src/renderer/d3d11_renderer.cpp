@@ -131,8 +131,8 @@ void D3D11Renderer::InitMainRenderingPipeline()
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "BONEIDS", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 40, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "WEIGHTS", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 56, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        //{ "BONEIDS", 0, DXGI_FORMAT_R32G32B32A32_SINT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        //{ "WEIGHTS", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 48, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
     UINT numElements = ARRAYSIZE(layout);
 
@@ -233,7 +233,7 @@ void D3D11Renderer::InitFontRenderingPipeline()
         FontVsBuffer->GetBufferSize(), &FontVertLayout));
 }
 
-void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform& platform, GameState* gameState)
+void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform& platform, GameMemory* gameState)
 {
     //////////////////////////////////
     // Init D3D11                   //
@@ -408,7 +408,7 @@ void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform& platfo
     D3d11DeviceContext->PSSetConstantBuffers(0, 1, &cbPerFrameBuffer);
 }
 
-void D3D11Renderer::RenderScene(GameState* gameState)
+void D3D11Renderer::RenderScene(GameMemory* gameState)
 {
     //Clear our back buffer (sky blue)
     constexpr float bgColor[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
@@ -450,8 +450,7 @@ void D3D11Renderer::RenderScene(GameState* gameState)
             CbPerObj.View = gameState->MainCamera.View;
             CbPerObj.World = entity.WorldMatrix;
 
-            auto& vec =  entity.Model.Animator.FinalBoneTransforms;
-            std::copy(vec.begin(), vec.end(), CbPerObj.FinalBoneTransforms.begin());
+            CbPerObj.FinalBoneTransforms = entity.Model.Animator.FinalBoneTransforms;
 
             D3d11DeviceContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
             D3d11DeviceContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
