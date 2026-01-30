@@ -479,6 +479,7 @@ void UpdateGame(const float dt, GameMemory* gameState)
     {
 		Entity& entity = gameState->World.Entities[i];
 
+        entity.WorldMatrix = MatrixIdentity();
         UpdateAnimator(entity.Model.Animator, dt);
 
 		M4 translation = MatrixTranslation(0.0f, 0.0f, i * 2.5f);
