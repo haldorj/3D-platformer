@@ -35,6 +35,7 @@
 #include <memory>
 #include <algorithm>
 #include <span>
+#include <functional>
 
 //////////////////////////////////////////
 // Third party includes					//

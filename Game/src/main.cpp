@@ -30,7 +30,7 @@ std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path, Rend
 Sound GenerateSineWave(uint32_t sampleRate,
     float frequency, float durationSeconds);
 
-static std::unique_ptr<GameMemory> _GameState;
+static std::unique_ptr<GameMemory> _GameMemory;
 
 static std::unique_ptr<Platform> _Platform;
 static std::unique_ptr<Renderer> _Renderer;
@@ -67,16 +67,16 @@ void Init()
 #endif
     Assert(_Platform && _Renderer);
 
-    _GameState = std::make_unique<GameMemory>();
+    _GameMemory = std::make_unique<GameMemory>();
 
     _Platform->InitWindow(_WindowWidth, _WindowHeight, L"Window");
 	_Platform->InitConsole();
 	_Platform->InitInput();
     _Platform->InitAudio();
     _Renderer->InitRenderer(
-        _GameResolutionHeight, _GameResolutionWidth, *_Platform, _GameState.get());
+        _GameResolutionHeight, _GameResolutionWidth, _Platform.get(), _GameMemory.get());
 
-    InitGame(_GameResolutionWidth, _GameResolutionHeight, _GameState.get());
+    InitGame(_GameResolutionWidth, _GameResolutionHeight, _GameMemory.get());
 }
 
 void Run()
@@ -107,10 +107,10 @@ void Run()
         _Platform->UpdateWindow(_Running);
 		_Platform->UpdateInput();
 
-        Move(deltaTime, _GameState.get());
-        UpdateGame(deltaTime, _GameState.get());
+        Move(deltaTime, _GameMemory.get());
+        UpdateGame(deltaTime, _GameMemory.get());
 
-        _Renderer->RenderScene(_GameState.get());
+        _Renderer->RenderScene(_GameMemory.get());
 
         _Renderer->RenderText(_LoadedFontGlyphs,
             _GameResolutionWidth, _GameResolutionHeight,
@@ -124,9 +124,9 @@ void Run()
 
             const std::string cameraPosStr = 
                 std::format("CameraPos: {:.2f} {:.2f} {:.2f}", 
-                    _GameState.get()->MainCamera.Position.X,
-                    _GameState.get()->MainCamera.Position.Y,
-                    _GameState.get()->MainCamera.Position.Z );
+                    _GameMemory.get()->MainCamera.Position.X,
+                    _GameMemory.get()->MainCamera.Position.Y,
+                    _GameMemory.get()->MainCamera.Position.Z );
 
             textScale = 0.6f;
 
@@ -181,7 +181,7 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameMemory* gam
     gameState->World.DirectionalLight.Ambient = { .X = 0.15f, .Y = 0.15f, .Z = 0.15f };
     gameState->World.DirectionalLight.Diffuse = { .X = 0.8f, .Y = 0.8f, .Z = 0.8f };
 
-    UploadMeshesToGPU(_GameState.get());
+    UploadMeshesToGPU(_GameMemory.get());
 
     //const float frequency = 440.f, duration = 0.2f;
     //_SineWave = GenerateSineWave(_SampleRate, frequency, duration);
@@ -271,7 +271,7 @@ void Move(float dt, GameMemory* gameState)
             _Platform->SetCursorVisible(false);
 		}
 
-        UpdateCamera(dt, _GameState.get());
+        UpdateCamera(dt, _GameMemory.get());
     }
     else
     {
@@ -480,8 +480,7 @@ void UpdateGame(const float dt, GameMemory* gameState)
 		Entity& entity = gameState->World.Entities[i];
 
         entity.WorldMatrix = MatrixIdentity();
-        UpdateAnimator(entity.Model.Animator, dt);
-
+        
 		M4 translation = MatrixTranslation(0.0f, 0.0f, i * 2.5f);
         M4 rotation = MatrixIdentity();
         if (i == 0)
@@ -489,6 +488,8 @@ void UpdateGame(const float dt, GameMemory* gameState)
 		M4 scale = MatrixScaling(1.0f, 1.0f, 1.0f);
 
 		entity.WorldMatrix = scale * translation * rotation;
+
+        UpdateAnimator(entity.Model.Animator, dt);
     }
 }
 

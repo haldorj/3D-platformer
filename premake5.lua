@@ -15,6 +15,7 @@ IncludeDir = {}
 IncludeDir["stb"] = "game/vendor/stb"
 IncludeDir["json"] = "game/vendor/json"
 IncludeDir["tinygltf"] = "game/vendor/tinygltf"
+IncludeDir["cgltf"] = "game/vendor/cgltf"
 
 project "game"
 	location "game"
@@ -51,6 +52,7 @@ project "game"
 		"%{IncludeDir.stb}",
 		"%{IncludeDir.json}",
 		"%{IncludeDir.tinygltf}",
+		"%{IncludeDir.cgltf}",
 	}
 
 	filter "system:windows"

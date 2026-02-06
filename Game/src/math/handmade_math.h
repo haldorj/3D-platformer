@@ -188,15 +188,7 @@ inline float Length(const V3& a)
 
 inline V3 V3Lerp(const V3& from, const V3& to, float t)
 {
-	// result = start * (1 - t) + end * t
-
-	V3 result{};
-
-	result.X = from.X * (1 - t) + to.X * t;
-	result.Y = from.Y * (1 - t) + to.Y * t;
-	result.Z = from.Z * (1 - t) + to.Z * t;
-
-	return result;
+	return from * (1.0f - t) + to * t;
 }
 
 //////////////////////////////////////////////////////////////////////////////

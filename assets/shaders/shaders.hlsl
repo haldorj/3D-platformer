@@ -42,11 +42,10 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 texCoo
     float4 skinnedPos = float4(0.0, 0.0, 0.0, 0.0);
     for (int i = 0; i < 4; ++i)
     {
-        uint boneIndex = boneIDs[i];
-        skinnedPos += weights[i] * mul(GlobalBoneTransform[boneIndex], position);
+        float4 localPosition = mul(GlobalBoneTransform[boneIDs[i]], float4(position.xyz, 1.0f));
+        skinnedPos += localPosition * weights[i];
     }
     float4 worldPos = mul(World, position);
-    
     result.position = mul(Projection, mul(View, worldPos));
     result.normal = float4(worldNormal, 1.0f);
     result.texCoord = texCoord;

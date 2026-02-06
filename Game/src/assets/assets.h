@@ -16,7 +16,7 @@ struct Vertex
 
 struct BoneInfo
 {
-    M4 OffsetMatrix{};
+    M4 InverseBindMatrix{};
     M4 FinalTransform{};
     // Bones connected to this bone.
     std::vector<int> Children{};
@@ -27,6 +27,7 @@ struct BoneInfo
 struct Skeleton 
 {
     std::vector<BoneInfo> Bones;
+    std::unordered_map<int, int> NodeToBoneIndex;
     int32_t RootBone{-1};
 };
 

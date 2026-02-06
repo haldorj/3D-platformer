@@ -14,6 +14,11 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#define TINYGLTF_IMPLEMENTATION
-// stb image includes are in tiny_gltf.h
-#include <tiny_gltf.h>
+#include <stb_image.h>
+
+#define CGLTF_IMPLEMENTATION
+#include <cgltf.h>
+
+//#define TINYGLTF_IMPLEMENTATION
+//// stb image includes are in tiny_gltf.h
+//#include <tiny_gltf.h>

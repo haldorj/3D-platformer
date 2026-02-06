@@ -71,36 +71,56 @@ static void UpdateAnimator(Animator& animator, float deltaTime)
         animator.CurrentTime = 
             std::min<float>(animator.CurrentTime, animator.CurrentAnimation->Duration);
     }
-
+    // std::println("current time: {}", animator.CurrentTime);
     UpdateAnimation(animator, animator.CurrentTime);
 }
 
 void UpdateAnimation(Animator& animator, float time)
 {
-    for (auto& channel : animator.CurrentAnimation->Channels)
-    {
-        int node = channel.TargetNode;
-        V3 t = InterpolateVec3(channel.Times, channel.Translations, time);
-        Quat r = InterpolateQuat(channel.Times, channel.Rotations, time);
-        V3 s = InterpolateVec3(channel.Times, channel.Scales, time);
+    if (!animator.CurrentAnimation || !animator.TargetSkeleton)
+        return;
 
-        animator.FinalBoneTransforms[node] =
+    auto& anim = *animator.CurrentAnimation;
+    auto& skeleton = *animator.TargetSkeleton;
+
+    std::array<M4, 100> localTransforms{};
+
+    for (auto& bone : skeleton.Bones)
+        localTransforms[skeleton.NodeToBoneIndex[bone.ID]] = MatrixIdentity();
+
+    for (auto& channel : anim.Channels)
+    {
+        auto it = skeleton.NodeToBoneIndex.find(channel.TargetNode);
+        if (it == skeleton.NodeToBoneIndex.end())
+            continue;
+        int boneIndex = it->second;
+
+        V3 t{ 0,0,0 };
+        Quat r{ 1,0,0,0 };
+        V3 s{ 1,1,1 };
+
+        if (!channel.Translations.empty()) t = InterpolateVec3(channel.Times, channel.Translations, time);
+        if (!channel.Rotations.empty())    r = InterpolateQuat(channel.Times, channel.Rotations, time);
+        if (!channel.Scales.empty())       s = InterpolateVec3(channel.Times, channel.Scales, time);
+
+        localTransforms[boneIndex] =
             MatrixTranslation(t.X, t.Y, t.Z) *
             MatrixFromQuaternion(r) *
             MatrixScaling(s.X, s.Y, s.Z);
     }
 
-    std::function<void(int, const M4&)> UpdateNodeTransform =
+    std::function<void(int, const M4&)> Recurse =
         [&](int boneIndex, const M4& parentTransform)
         {
-            BoneInfo& bone = animator.TargetSkeleton->Bones[boneIndex];
-            M4 global = parentTransform * animator.FinalBoneTransforms[bone.ID];
-            bone.FinalTransform = global * bone.OffsetMatrix;
+            M4 global = parentTransform * localTransforms[boneIndex];
+            BoneInfo& bone = skeleton.Bones[boneIndex];
 
-            for (int child : bone.Children)
-                UpdateNodeTransform(child, global);
+            animator.FinalBoneTransforms[boneIndex] = global * bone.InverseBindMatrix;
+
+            for (int childIndex : skeleton.Bones[boneIndex].Children)
+                Recurse(childIndex, global);
         };
 
-    if (animator.TargetSkeleton->RootBone >= 0)
-        UpdateNodeTransform(animator.TargetSkeleton->RootBone, MatrixIdentity());
+    if (skeleton.RootBone >= 0)
+        Recurse(skeleton.RootBone, MatrixIdentity());
 }

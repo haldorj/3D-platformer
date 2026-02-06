@@ -233,7 +233,54 @@ void D3D11Renderer::InitFontRenderingPipeline()
         FontVsBuffer->GetBufferSize(), &FontVertLayout));
 }
 
-void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform& platform, GameMemory* gameState)
+void D3D11Renderer::InitDebugRenderingPipeline()
+{
+    LPCWSTR shaderPath = L"assets/shaders/debug_line_shader.hlsl";
+
+    ID3DBlob* errorMessages;
+
+    //Create the Shader Objects
+    HRESULT hr = D3DCompileFromFile(
+        shaderPath,
+        nullptr,
+        nullptr,
+        "VSMain",
+        "vs_5_0",
+        0,
+        0,
+        &DebugModeVsBuffer,
+        &errorMessages);
+
+    VerifyShader(hr, errorMessages);
+
+    hr = D3DCompileFromFile(
+        shaderPath,
+        nullptr,
+        nullptr,
+        "PSMain",
+        "ps_5_0",
+        0,
+        0,
+        &DebugModePsBuffer,
+        &errorMessages);
+
+	VerifyShader(hr, errorMessages);
+
+    ExitIfFailed(D3d11Device->CreateVertexShader(DebugModeVsBuffer->GetBufferPointer(), DebugModeVsBuffer->GetBufferSize(), nullptr, &DebugModeVS));
+	ExitIfFailed(D3d11Device->CreatePixelShader(DebugModePsBuffer->GetBufferPointer(), DebugModePsBuffer->GetBufferSize(), nullptr, &DebugModePS));
+
+    D3D11_INPUT_ELEMENT_DESC layout[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+    UINT numElements = ARRAYSIZE(layout);
+    //Create the Input Layout
+    ExitIfFailed(D3d11Device->CreateInputLayout(layout, numElements, DebugModeVsBuffer->GetBufferPointer(),
+		DebugModeVsBuffer->GetBufferSize(), &DebugModeVertLayout));
+}
+
+void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform* platform, GameMemory* gameState)
 {
     //////////////////////////////////
     // Init D3D11                   //
@@ -263,7 +310,7 @@ void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform& platfo
     swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
     swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
 
-    void* window = platform.GetWindowHandle();
+    void* window = platform->GetWindowHandle();
     HWND hwnd = static_cast<HWND>(window);
 
     Assert(hwnd && "HWND is null!");
@@ -434,7 +481,6 @@ void D3D11Renderer::RenderScene(GameMemory* gameState)
             D3d11DeviceContext->IASetInputLayout(VertLayout);
             D3d11DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-
             //Enable the Default Rasterizer State
             D3d11DeviceContext->RSSetState(nullptr);
             //Turn off backface culling
@@ -462,6 +508,11 @@ void D3D11Renderer::RenderScene(GameMemory* gameState)
         }
     }
 }
+//
+//void D3D11Renderer::RenderPoint(const V3& position, const float scale)
+//{
+//    std::println("position");
+//}
 
 void D3D11Renderer::RenderText(std::unordered_map<char, FontGlyph>& glyphs,
     int w, int h, const std::string_view text, float x, float y,
