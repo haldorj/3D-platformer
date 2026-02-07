@@ -85,13 +85,13 @@ void UpdateAnimation(Animator& animator, float time)
 
     std::array<M4, 100> localTransforms{};
 
-    for (auto& bone : skeleton.Bones)
-        localTransforms[skeleton.NodeToBoneIndex[bone.ID]] = MatrixIdentity();
+    for (auto& bone : skeleton.Joints)
+        localTransforms[skeleton.NodeIndexToJointID[bone.ID]] = MatrixIdentity();
 
     for (auto& channel : anim.Channels)
     {
-        auto it = skeleton.NodeToBoneIndex.find(channel.TargetNode);
-        if (it == skeleton.NodeToBoneIndex.end())
+        auto it = skeleton.NodeIndexToJointID.find(channel.TargetNode);
+        if (it == skeleton.NodeIndexToJointID.end())
             continue;
         int boneIndex = it->second;
 
@@ -113,14 +113,14 @@ void UpdateAnimation(Animator& animator, float time)
         [&](int boneIndex, const M4& parentTransform)
         {
             M4 global = parentTransform * localTransforms[boneIndex];
-            BoneInfo& bone = skeleton.Bones[boneIndex];
+            Joint& joint = skeleton.Joints[boneIndex];
 
-            animator.FinalBoneTransforms[boneIndex] = global * bone.InverseBindMatrix;
+            animator.FinalBoneTransforms[boneIndex] = global * joint.InverseBindTransform;
 
-            for (int childIndex : skeleton.Bones[boneIndex].Children)
+            for (int childIndex : skeleton.Joints[boneIndex].Children)
                 Recurse(childIndex, global);
         };
 
-    if (skeleton.RootBone >= 0)
-        Recurse(skeleton.RootBone, MatrixIdentity());
+    if (skeleton.RootJoint >= 0)
+        Recurse(skeleton.RootJoint, MatrixIdentity());
 }

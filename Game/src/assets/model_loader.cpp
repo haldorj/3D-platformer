@@ -144,35 +144,39 @@ Model ModelLoader::LoadGLTFModel(const std::string& filename)
     {
         const cgltf_skin& skin = data->skins[i];
         Skeleton skeleton{};
-        skeleton.Bones.resize(skin.joints_count);
 
         std::vector<M4> inverseBind;
         if (skin.inverse_bind_matrices)
             inverseBind = GetAttributeData<M4>(skin.inverse_bind_matrices);
 
-        std::unordered_map<int, int> nodeToBone;
+        std::unordered_map<int, int> nodeToJoint;
         for (size_t j = 0; j < skin.joints_count; ++j)
-            nodeToBone[int(skin.joints[j] - data->nodes)] = int(j);
+            nodeToJoint[int(skin.joints[j] - data->nodes)] = int(j);
 
+        skeleton.Joints.reserve(skin.joints_count);
         for (size_t j = 0; j < skin.joints_count; ++j)
         {
-            BoneInfo& bone = skeleton.Bones[j];
-            bone.ID = int(skin.joints[j] - data->nodes);
+            Joint joint{};
+            joint.ID = int(skin.joints[j] - data->nodes);
+            joint.Name = skin.joints[j]->name;
             if (!inverseBind.empty() && j < inverseBind.size())
-                bone.InverseBindMatrix = inverseBind[j];
-            bone.Children.clear();
+                joint.InverseBindTransform = inverseBind[j];
+            joint.Children.clear();
 
             const cgltf_node* node = skin.joints[j];
             for (size_t c = 0; c < node->children_count; ++c)
             {
                 int childNode = int(node->children[c] - data->nodes);
-                auto it = nodeToBone.find(childNode);
-                if (it != nodeToBone.end())
-                    bone.Children.push_back(it->second);
+                auto it = nodeToJoint.find(childNode);
+                if (it != nodeToJoint.end())
+                    joint.Children.push_back(it->second);
             }
+            skeleton.Joints.push_back(std::move(joint));
         }
 
-        skeleton.RootBone = (skin.skeleton) ? nodeToBone[int(skin.skeleton - data->nodes)] : 0;
+        skeleton.NodeIndexToJointID = nodeToJoint;
+        skeleton.RootJoint = (skin.skeleton) ? nodeToJoint[int(skin.skeleton - data->nodes)] : 0;
+        skeleton.JointCount = static_cast<uint32_t>(skin.joints_count);
         result.Skeletons.push_back(std::move(skeleton));
     }
 

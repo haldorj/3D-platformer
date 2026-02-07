@@ -10,34 +10,49 @@ struct Vertex
     V3 Normal{};
     V2 TexCoord{};
 
+    // The bones that can affect this vertex.
     IV4 BoneIDs{};
+    // How much influence each bone has on this vertex.
     V4 Weights{};
+
+    // Example:
+    // BoneIDs = [6,    2,    ... ]
+    // Weights = [0.25, 0.75, ... ] (sum should always be 1).
 };
 
-struct BoneInfo
+struct Joint
 {
-    M4 InverseBindMatrix{};
-    M4 FinalTransform{};
+    // Inverted model-space bind transform (bone to model origin).
+    M4 InverseBindTransform{};
+
+    // The transformation needed to position the joint from its 
+    // original position to the current pose.
+    // This will be uploaded to the shader.
+    M4 AnimatedTransform{};
+
+    std::string Name{};
     // Bones connected to this bone.
     std::vector<int> Children{};
-
     int32_t ID{};
 };
 
 struct Skeleton 
 {
-    std::vector<BoneInfo> Bones;
-    std::unordered_map<int, int> NodeToBoneIndex;
-    int32_t RootBone{-1};
+    std::vector<Joint> Joints;
+    std::unordered_map<int, int> NodeIndexToJointID;
+    int32_t RootJoint{ -1 };
+    uint32_t JointCount{};
 };
 
 struct AnimationChannel 
 {
     std::string Path{};
+
     std::vector<float> Times{};
     std::vector<V3> Translations{};
     std::vector<Quat> Rotations{};
     std::vector<V3> Scales{};
+
     int32_t TargetNode{};
 };
 
@@ -46,12 +61,12 @@ struct Animation
     std::string Name{};
     std::vector<AnimationChannel> Channels{};
     float Duration{};
-    float CurrentTime{};
 };
 
 struct Animator
 {
     std::array<M4, 100> FinalBoneTransforms{};
+
     Skeleton* TargetSkeleton{};
     Animation* CurrentAnimation{};
 

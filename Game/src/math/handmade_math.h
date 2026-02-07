@@ -24,6 +24,11 @@ struct IV4
 	int32_t X, Y, Z, W;
 };
 
+struct Quat
+{
+	float X, Y, Z, W;
+};
+
 struct M4
 {
 	float M[4][4] = { 0 };
@@ -200,11 +205,6 @@ inline V3 V3Lerp(const V3& from, const V3& to, float t)
 //////////////////////////////////////////////////////////////////////////////
 //								QUATERNIONS									//
 //////////////////////////////////////////////////////////////////////////////
-
-struct Quat
-{
-	float X, Y, Z, W;
-};
 
 inline Quat operator * (const Quat& q, const float s)
 {
