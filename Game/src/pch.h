@@ -41,8 +41,9 @@
 // Third party includes					//
 //////////////////////////////////////////
 
-#include <impl.h>
 #include <stb_truetype.h>
+#include <stb_image.h>
+#include <cgltf.h>
 
 //////////////////////////////////////////
 // Platform includes					//

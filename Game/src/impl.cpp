@@ -6,16 +6,15 @@
 */
 
 // Font loading.
-
 #define STB_TRUETYPE_IMPLEMENTATION
 #include <stb_truetype.h>
 
-// Texure and model loading:
-
+// Texture loading:
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image.h>
 
+// Model loading (gltf):
 #define CGLTF_IMPLEMENTATION
 #include <cgltf.h>
 

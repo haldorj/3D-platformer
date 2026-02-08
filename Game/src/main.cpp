@@ -21,6 +21,12 @@ void UploadMeshesToGPU(GameMemory* gameState);
 void UpdateGame(const float dt, GameMemory* gameState);
 void UpdateCamera(const float dt, GameMemory* gameState);
 
+// Debugging
+
+void InitDebugPrimitives();
+void DrawDebugLine3D(const V3& start, const V3& end, const V3& color);
+void ClearDebugPrimitives(); // Called every frame.
+
 Entity LoadTerrain(const std::string& path, const V3& offset);
 
 // TODO: Make a platform specific read file function.
@@ -56,6 +62,7 @@ static float _MouseSensitivity = 0.1f;
 uint32_t _SampleRate = 44100;
 Sound _SineWave{};
 
+static bool _DebugMode{};
 static DebugPrimitives _DebugPrimitives;
 
 void Init()
@@ -114,7 +121,8 @@ void Run()
 
         _Renderer->RenderScene(_GameMemory.get());
 
-        _Renderer->RenderDebugPrimitives(_GameMemory.get(), _DebugPrimitives);
+        if (_DebugMode)
+            _Renderer->RenderDebugPrimitives(_GameMemory.get(), _DebugPrimitives);
 
         _Renderer->RenderText(_LoadedFontGlyphs,
             _GameResolutionWidth, _GameResolutionHeight,
@@ -146,7 +154,7 @@ void Run()
         previousTime = currentTime;
         deltaTime = static_cast<float>(elapsed.count());
 
-        _DebugPrimitives.Lines.clear();
+        ClearDebugPrimitives();
     }
 }
 
@@ -193,6 +201,8 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameMemory* gam
     //_SineWave = GenerateSineWave(_SampleRate, frequency, duration);
 
     _SineWave = LoadWavFile("assets/audio/jump.wav");
+
+    InitDebugPrimitives();
 }
 
 void UploadMeshesToGPU(GameMemory* gameState)
@@ -229,44 +239,53 @@ void Move(float dt, GameMemory* gameState)
     {
 		_Running = false;
     }
-    if (_Platform->IsKeyDown(KeyCode::KEY_W))
+
+    if (_EditMode)
     {
-        gameState->MainCamera.Position += forward * moveSpeed;
+        // Camera controls
+        if (_Platform->IsKeyDown(KeyCode::KEY_W))
+        {
+            gameState->MainCamera.Position += forward * moveSpeed;
+        }
+        if (_Platform->IsKeyDown(KeyCode::KEY_S))
+        {
+            gameState->MainCamera.Position -= forward * moveSpeed;
+        }
+        if (_Platform->IsKeyDown(KeyCode::KEY_A))
+        {
+            gameState->MainCamera.Position += right * moveSpeed;
+        }
+        if (_Platform->IsKeyDown(KeyCode::KEY_D))
+        {
+            gameState->MainCamera.Position -= right * moveSpeed;
+        }
+        if (_Platform->IsKeyDown(KeyCode::KEY_SPACE))
+        {
+            gameState->MainCamera.Position.Y += moveSpeed;
+        }
+        if (_Platform->IsKeyDown(KeyCode::KEY_LEFT_CTRL))
+        {
+            gameState->MainCamera.Position.Y -= moveSpeed;
+        }
     }
-    if (_Platform->IsKeyDown(KeyCode::KEY_S))
-    {
-        gameState->MainCamera.Position -= forward * moveSpeed;
-	}
-    if (_Platform->IsKeyDown(KeyCode::KEY_A))
-    {
-        gameState->MainCamera.Position += right * moveSpeed;
-	}
-    if (_Platform->IsKeyDown(KeyCode::KEY_D))
-    {
-        gameState->MainCamera.Position -= right * moveSpeed;
-    }
-    if (_Platform->IsKeyDown(KeyCode::KEY_SPACE))
-    {
-        gameState->MainCamera.Position.Y += moveSpeed;
-    }
-    if (_Platform->IsKeyDown(KeyCode::KEY_LEFT_CTRL))
-    {
-        gameState->MainCamera.Position.Y -= moveSpeed;
-    }
+
     if (_Platform->IsKeyPressed(KeyCode::KEY_Q))
     {
         _Platform->PlayAudio(_SineWave ,0.2f);
     }
 
-    if (_Platform->IsKeyPressed(KeyCode::KEY_F1))
-    {
-        _VSync = !_VSync;
-	}
     if (_Platform->IsKeyPressed(KeyCode::KEY_F2))
     {
         _EditMode = !_EditMode;
     }
-
+    if (_Platform->IsKeyPressed(KeyCode::KEY_F1))
+    {
+        _VSync = !_VSync;
+    }
+    if (_Platform->IsKeyPressed(KeyCode::KEY_F3))
+    {
+        _DebugMode = !_DebugMode;
+    }
 
     if (_EditMode)
     {
@@ -329,6 +348,23 @@ void UpdateCamera(const float dt, GameMemory* gameState)
 
     c.View = MatrixLookAt(c.Position, target, c.Up);
 
+}
+
+void InitDebugPrimitives()
+{
+    _DebugPrimitives.Lines.reserve(128);
+}
+
+void DrawDebugLine3D(const V3& start, const V3& end, const V3& color)
+{
+    if (!_DebugMode) return;
+    _DebugPrimitives.Lines.push_back({ start, end, color });
+}
+
+void ClearDebugPrimitives()
+{
+    if (!_DebugMode) return;
+    _DebugPrimitives.Lines.clear();
 }
 
 Entity LoadTerrain(const std::string& path, const V3& offset)
@@ -495,6 +531,7 @@ void UpdateGame(const float dt, GameMemory* gameState)
 
 		entity.WorldMatrix = scale * translation * rotation;
 
+        V3 color = { 1.f,1.f,1.f };
         for (const auto& skeleton : entity.Model.Skeletons)
         {
             for (int j = 1; j < skeleton.Joints.size(); ++j)
@@ -508,7 +545,7 @@ void UpdateGame(const float dt, GameMemory* gameState)
                     M4 childBind = MatrixInverse(skeleton.Joints[child].InverseBindTransform);
                     V3 end = { childBind.M[3][0], childBind.M[3][1], childBind.M[3][2] };
 
-                    _DebugPrimitives.Lines.push_back({ start, end, {1.f,1.f,1.f} });
+                    DrawDebugLine3D(start, end, color);
                 };
             }
         }
