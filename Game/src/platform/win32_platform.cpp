@@ -12,8 +12,8 @@ static std::unordered_map<KeyCode, int> _KeyMap;
 static IXAudio2* _XAudio2Instance{};
 static IXAudio2MasteringVoice* _XAudio2MasteringVoice{};
 
-static constexpr size_t MAX_SOURCE_VOICES = 32;
-static std::array <IXAudio2SourceVoice*, MAX_SOURCE_VOICES> _VoicePool{};
+static constexpr size_t MAX_CONCURRENT_SOURCE_VOICES = 32;
+static std::array <IXAudio2SourceVoice*, MAX_CONCURRENT_SOURCE_VOICES> _VoicePool{};
 
 static int TranslateModifierKey(WPARAM wParam, LPARAM lParam)
 {
@@ -506,7 +506,11 @@ void Win32Platform::PlayAudio(Sound& sound, float volume)
 
     // No free voices available.
     // Consider increasing MAX_SOURCE_VOICES.
-    Assert(voice);
+    if(!voice)
+    {
+        std::println("Failed to play sound: no free source voices.");
+	    return;
+	}
 
     XAUDIO2_BUFFER buffer = {};
     buffer.AudioBytes = static_cast<UINT32>(sound.AudioBuffer.size() * sizeof(float));

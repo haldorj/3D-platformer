@@ -95,9 +95,9 @@ void UpdateAnimation(Animator& animator, float time)
             continue;
         int boneIndex = it->second;
 
-        V3 t{ 0,0,0 };
+        V3   t{ 0,0,0 };
         Quat r{ 1,0,0,0 };
-        V3 s{ 1,1,1 };
+        V3   s{ 1,1,1 };
 
         if (!channel.Translations.empty()) t = InterpolateVec3(channel.Times, channel.Translations, time);
         if (!channel.Rotations.empty())    r = InterpolateQuat(channel.Times, channel.Rotations, time);

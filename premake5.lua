@@ -27,7 +27,10 @@ project "game"
 	warnings "Extra"
 	-- 4100: unused funtion parameter
 	disablewarnings {"4100"}
-	flags { "FatalWarnings" }
+	flags { 
+		"FatalWarnings", 
+		"MultiProcessorCompile" 
+	}
 
 	targetdir ("bin/" .. outputdir .. "/%{prj.name}")
 	objdir ("bin-int/" .. outputdir .. "/%{prj.name}")

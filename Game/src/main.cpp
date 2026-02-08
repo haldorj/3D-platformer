@@ -9,8 +9,6 @@
 #include <renderer/d3d11_renderer.h>
 #endif
 
-#include <stb_image.h>
-
 void Init();
 void Run();
 void Shutdown();
@@ -551,6 +549,7 @@ void UpdateGame(const float dt, GameMemory* gameState)
         }
 
         UpdateAnimator(entity.Model.Animator, dt);
+        //std::println("");
     }
 }
 

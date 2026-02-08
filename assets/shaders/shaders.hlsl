@@ -11,8 +11,6 @@ cbuffer cbPerFrame
     Light light;
 };
 
-const int MAX_BONE_INFLUENCE = 4;
-
 cbuffer cbPerObject
 {
     float4x4 GlobalBoneTransform[100];
@@ -39,24 +37,25 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 texCoo
 {
     PSInput result;
 
-    float3 worldNormal = normalize(mul((float3x3) World, normal.xyz));
     float4 skinnedPosition = float4(0.0, 0.0, 0.0, 0.0);
     float4 skinnedNormal = float4(0.0, 0.0, 0.0, 0.0);
-    
-    for (int i = 0; i < MAX_BONE_INFLUENCE; ++i)
+
+    for (int i = 0; i < 4; ++i)
     {
-        float4 localPosition = mul(GlobalBoneTransform[boneIDs[i]], float4(position.xyz, 1.0f));
-        skinnedPosition += localPosition * weights[i];
-        
-        float4 localNormal = mul(GlobalBoneTransform[boneIDs[i]], float4(normal.xyz, 0.0f));
-        skinnedNormal += localNormal * weights[i];
+        int idx = clamp(boneIDs[i], 0, 100 - 1);
+        skinnedPosition += mul(GlobalBoneTransform[idx], float4(position.xyz, 1.0f)) * weights[i];
+        skinnedNormal += mul(GlobalBoneTransform[idx], float4(normal.xyz, 0.0f)) * weights[i];
     }
-    
+
     float4 worldPos = mul(World, position);
     result.position = mul(Projection, mul(View, worldPos));
-    result.normal = float4(worldNormal.xyz, 1.0f);
-    result.texCoord = texCoord;
 
+    // Correct normal computation
+    float3 normal3 = mul((float3x3) World, normal.xyz);
+    normal3 = normalize(normal3);
+    result.normal = float4(normal3, 1.0f);
+
+    result.texCoord = texCoord;
     return result;
 }
 
