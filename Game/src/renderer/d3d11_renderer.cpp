@@ -235,7 +235,7 @@ void D3D11Renderer::InitFontRenderingPipeline()
 
 void D3D11Renderer::InitDebugRenderingPipeline()
 {
-    LPCWSTR shaderPath = L"assets/shaders/debug_line_shader.hlsl";
+    LPCWSTR shaderPath = L"assets/shaders/debug_primitives_shaders.hlsl";
 
     ID3DBlob* errorMessages;
 
@@ -278,6 +278,15 @@ void D3D11Renderer::InitDebugRenderingPipeline()
     //Create the Input Layout
     ExitIfFailed(D3d11Device->CreateInputLayout(layout, numElements, DebugModeVsBuffer->GetBufferPointer(),
 		DebugModeVsBuffer->GetBufferSize(), &DebugModeVertLayout));
+
+    constexpr int MAX_DEBUG_VERTS = 1000;
+
+    D3D11_BUFFER_DESC desc = {};
+    desc.ByteWidth = MAX_DEBUG_VERTS * sizeof(DebugVertex);
+    desc.Usage = D3D11_USAGE_DYNAMIC;
+    desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    D3d11Device->CreateBuffer(&desc, nullptr, &DebugModeVertBuffer);
 }
 
 void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform* platform, GameMemory* gameState)
@@ -363,6 +372,7 @@ void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform* platfo
 
     InitMainRenderingPipeline();
     InitFontRenderingPipeline();
+    InitDebugRenderingPipeline();
 
     //Create the buffer to send to the constant buffer in effect file
     D3D11_BUFFER_DESC constantBufferDesc;
@@ -375,6 +385,18 @@ void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform* platfo
     constantBufferDesc.MiscFlags = 0;
 
     ExitIfFailed(D3d11Device->CreateBuffer(&constantBufferDesc, nullptr, &CbPerObjectBuffer));
+
+    //Create the buffer to send to the constant buffer in effect file
+    //D3D11_BUFFER_DESC constantBufferDesc;
+    ZeroMemory(&constantBufferDesc, sizeof(D3D11_BUFFER_DESC));
+
+    constantBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    constantBufferDesc.ByteWidth = sizeof(DebugCbPerObject);
+    constantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    constantBufferDesc.CPUAccessFlags = 0;
+    constantBufferDesc.MiscFlags = 0;
+
+    ExitIfFailed(D3d11Device->CreateBuffer(&constantBufferDesc, nullptr, &DebugConstantBuffer));
 
     D3D11_SAMPLER_DESC samplerDesc;
     ZeroMemory(&samplerDesc, sizeof(samplerDesc));
@@ -508,11 +530,48 @@ void D3D11Renderer::RenderScene(GameMemory* gameState)
         }
     }
 }
-//
-//void D3D11Renderer::RenderPoint(const V3& position, const float scale)
-//{
-//    std::println("position");
-//}
+
+void D3D11Renderer::RenderDebugPrimitives(GameMemory* gameMemory, DebugPrimitives& primitives)
+{
+    if (primitives.Lines.empty())
+        return;
+
+    // Build vertex list
+    std::vector<DebugVertex> vertices;
+    vertices.reserve(primitives.Lines.size() * 2);
+    for (const auto& line : primitives.Lines)
+    {
+        DebugVertex v0{ line.Start, line.Color };
+        DebugVertex v1{ line.End,   line.Color };
+        vertices.push_back(v0);
+        vertices.push_back(v1);
+    }
+
+    // Upload to GPU
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    D3d11DeviceContext->Map(DebugModeVertBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+    memcpy(mapped.pData, vertices.data(), vertices.size() * sizeof(DebugVertex));
+    D3d11DeviceContext->Unmap(DebugModeVertBuffer, 0);
+
+    // Bind shader + buffer
+    D3d11DeviceContext->VSSetShader(DebugModeVS, nullptr, 0);
+    D3d11DeviceContext->PSSetShader(DebugModePS, nullptr, 0);
+    D3d11DeviceContext->IASetInputLayout(DebugModeVertLayout);
+
+    UINT stride = sizeof(DebugVertex);
+    UINT offset = 0;
+    D3d11DeviceContext->IASetVertexBuffers(0, 1, &DebugModeVertBuffer, &stride, &offset);
+    D3d11DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+
+    DebugCbPerObject ConstantBuffer = {};
+    ConstantBuffer.ViewProj = gameMemory->MainCamera.View * gameMemory->MainCamera.Projection;
+    D3d11DeviceContext->UpdateSubresource(DebugConstantBuffer, 0, nullptr, &ConstantBuffer, 0, 0);
+    D3d11DeviceContext->VSSetConstantBuffers(0, 1, &DebugConstantBuffer);
+    D3d11DeviceContext->PSSetConstantBuffers(0, 1, &DebugConstantBuffer);
+
+    // Draw all lines
+    D3d11DeviceContext->Draw(static_cast<UINT>(vertices.size()), 0);
+}
 
 void D3D11Renderer::RenderText(std::unordered_map<char, FontGlyph>& glyphs,
     int w, int h, const std::string_view text, float x, float y,

@@ -20,6 +20,14 @@ struct Vertex
     // Weights = [0.25, 0.75, ... ] (sum should always be 1).
 };
 
+// Used for different primitives (line, points, cubes etc...) 
+// for visual debugging.
+struct DebugVertex
+{
+    V3 Position{};
+    V3 Color{};
+};
+
 struct Joint
 {
     // Inverted model-space bind transform (bone to model origin).

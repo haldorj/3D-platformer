@@ -13,6 +13,11 @@ struct CbPerObject
     V4 Color{};
 };
 
+struct DebugCbPerObject
+{
+    M4 ViewProj{};
+};
+
 struct CbPerFrame
 {
     DirectionalLight Light{};
@@ -28,10 +33,11 @@ public:
 	void* CreateTextureView(const Texture& texture) override;
 
 	void RenderScene(GameMemory* gameState) override;
-    // void RenderPoint(const V3& position, const float scale) override;
 	void RenderText(std::unordered_map<char, FontGlyph>& glyphs, 
         int w, int h, const std::string_view text, float x, float y, 
         const float scale, const V3& color) override;
+
+    void RenderDebugPrimitives(GameMemory* gameMemory, DebugPrimitives& primitives) override;
 
 	void PresentSwapChain(bool& vSync) override;
 
@@ -55,6 +61,7 @@ private:
     ID3D11InputLayout* VertLayout{};
 
     ID3D11Buffer* CbPerObjectBuffer{};
+    ID3D11Buffer* DebugConstantBuffer{};
     ID3D11RasterizerState* Solid{};
     ID3D11RasterizerState* WireFrame{};
 
@@ -68,7 +75,6 @@ private:
     ID3D10Blob* FontPsBuffer{};
     ID3D11InputLayout* FontVertLayout{};
 
-    ID3D11Buffer* DebugModeIndexBuffer{};
     ID3D11Buffer* DebugModeVertBuffer{};
     ID3D11VertexShader* DebugModeVS{};
     ID3D11PixelShader* DebugModePS{};

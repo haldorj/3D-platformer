@@ -56,6 +56,8 @@ static float _MouseSensitivity = 0.1f;
 uint32_t _SampleRate = 44100;
 Sound _SineWave{};
 
+static DebugPrimitives _DebugPrimitives;
+
 void Init()
 {
     _GameResolutionWidth = std::min<uint32_t>(_WindowWidth, _GameResolutionWidth);
@@ -112,9 +114,13 @@ void Run()
 
         _Renderer->RenderScene(_GameMemory.get());
 
+        
+
         _Renderer->RenderText(_LoadedFontGlyphs,
             _GameResolutionWidth, _GameResolutionHeight,
             fpsStr, 0, 0, textScale, textColor);
+
+        _Renderer->RenderDebugPrimitives(_GameMemory.get(), _DebugPrimitives);
 
         if (_EditMode)
         {
@@ -155,7 +161,7 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameMemory* gam
     gameState->MainCamera.Position = { 0.0f, 2.0f, -2.0f };
 
     V3 target = { 0.0f, 1.0f, 0.0f };
-	V3 direction = Normalize(target - gameState->MainCamera.Position);
+    V3 direction = Normalize(target - gameState->MainCamera.Position);
 
     gameState->MainCamera.Direction = direction;
     gameState->MainCamera.Up = { 0.0f, 1.0f, 0.0f };
@@ -170,11 +176,11 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameMemory* gam
         gameState->MainCamera.Up);
 
     //Set the Projection matrix
-	float nearPlane = 0.1f;
-	float farPlane = 1000.0f;
+    float nearPlane = 0.1f;
+    float farPlane = 1000.0f;
     gameState->MainCamera.Projection = MatrixPerspective(
         0.5f * 3.14f, static_cast<float>(gameResolutionWidth) / gameResolutionHeight, nearPlane, farPlane);
-    
+
     _LoadedFontGlyphs = LoadFontGlyphs("C:/Windows/Fonts/Calibri.ttf", _Renderer.get());
 
     gameState->World.DirectionalLight.Direction = { .X = -0.25f, .Y = -0.5f, .Z = -1.0f };
@@ -187,6 +193,9 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameMemory* gam
     //_SineWave = GenerateSineWave(_SampleRate, frequency, duration);
 
     _SineWave = LoadWavFile("assets/audio/jump.wav");
+
+    _DebugPrimitives.Lines.push_back({ {2.f,2.f,2.f}, {30.f,30.f,30.f}, {1.f,0.f,0.f} });
+    _DebugPrimitives.Lines.push_back({ {5.f,5.f,5.f}, {-20.f,20.f,-20.f}, {1.f,0.f,0.f} });
 }
 
 void UploadMeshesToGPU(GameMemory* gameState)

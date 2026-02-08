@@ -2,8 +2,19 @@
 
 #include "game.h"
 
-class Platform;
+struct DebugLine
+{
+	V3 Start;
+	V3 End;
+	V3 Color;
+};
 
+struct DebugPrimitives
+{
+	std::vector<DebugLine> Lines;
+};
+
+class Platform;
 class Renderer
 {
 public:
@@ -18,7 +29,7 @@ public:
 
 	virtual void RenderScene(GameMemory* gameState) = 0;
 
-	// virtual void RenderPoint(const V3& position, const float scale);
+	virtual void RenderDebugPrimitives(GameMemory* gameMemory, DebugPrimitives& primitives) = 0;
 
 	virtual void RenderText(std::unordered_map<char, FontGlyph>& glyphs,
 		int w, int h, const std::string_view text, float x, float y,
