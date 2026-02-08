@@ -352,15 +352,15 @@ inline M4 operator*(const M4& a, const M4& b)
 
 inline M4 MatrixTranspose(const M4& in)
 {
-	M4 out;
+	M4 result;
 	for (int i = 0; i < 4; i++)
 	{
 		for (int j = 0; j < 4; j++)
 		{
-			out.M[i][j] = in.M[j][i];
+			result.M[i][j] = in.M[j][i];
 		}
 	}
-	return out;
+	return result;
 };
 
 inline M4 MatrixIdentity()
@@ -372,6 +372,24 @@ inline M4 MatrixIdentity()
 	result.M[3][3] = 1.0f;
 	return result;
 };
+
+inline M4 MatrixInverse(const M4& in)
+{
+	M4 result = MatrixIdentity();
+
+	// Transpose the upper 3×3 rotation/scale part
+	result.M[0][0] = in.M[0][0]; result.M[0][1] = in.M[1][0]; result.M[0][2] = in.M[2][0];
+	result.M[1][0] = in.M[0][1]; result.M[1][1] = in.M[1][1]; result.M[1][2] = in.M[2][1];
+	result.M[2][0] = in.M[0][2]; result.M[2][1] = in.M[1][2]; result.M[2][2] = in.M[2][2];
+
+	// Invert translation
+	result.M[3][0] = -(in.M[3][0] * result.M[0][0] + in.M[3][1] * result.M[1][0] + in.M[3][2] * result.M[2][0]);
+	result.M[3][1] = -(in.M[3][0] * result.M[0][1] + in.M[3][1] * result.M[1][1] + in.M[3][2] * result.M[2][1]);
+	result.M[3][2] = -(in.M[3][0] * result.M[0][2] + in.M[3][1] * result.M[1][2] + in.M[3][2] * result.M[2][2]);
+	result.M[3][3] = 1.0f;
+
+	return result;
+}
 
 inline M4 MatrixLookAt(const V3& eye, const V3& at, const V3& up)
 {

@@ -52,6 +52,8 @@ private:
 
     ID3D11RenderTargetView* RenderTargetView{};
     ID3D11DepthStencilView* DepthStencilView{};
+    ID3D11DepthStencilState* DefaultDepthState{};
+    ID3D11DepthStencilState* NoDepthTestState{};
     ID3D11Texture2D* DepthStencilBuffer{};
 
     ID3D11VertexShader* VS{};

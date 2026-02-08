@@ -356,6 +356,26 @@ void D3D11Renderer::InitRenderer(int gameHeight, int gameWidth, Platform* platfo
     //Set our Render Target and Depth/Stencil Views
     D3d11DeviceContext->OMSetRenderTargets(1, &RenderTargetView, DepthStencilView);
 
+    // Default: depth test on, depth write on
+    {
+        D3D11_DEPTH_STENCIL_DESC desc{};
+        desc.DepthEnable = TRUE;
+        desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+        desc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+        desc.StencilEnable = FALSE;
+        D3d11Device->CreateDepthStencilState(&desc, &DefaultDepthState);
+    }
+
+    // No-depth state: for debug/UI overlays
+    {
+        D3D11_DEPTH_STENCIL_DESC desc{};
+        desc.DepthEnable = FALSE;
+        desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+        desc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+        desc.StencilEnable = FALSE;
+        D3d11Device->CreateDepthStencilState(&desc, &NoDepthTestState);
+    }
+
     //Create the Viewport
     D3D11_VIEWPORT viewport;
     ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
@@ -485,6 +505,7 @@ void D3D11Renderer::RenderScene(GameMemory* gameState)
 
     //Refresh the Depth/Stencil view
     D3d11DeviceContext->ClearDepthStencilView(DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+    D3d11DeviceContext->OMSetDepthStencilState(DefaultDepthState, 0);
 
     //Set Initial Vertex and Pixel Shaders
     D3d11DeviceContext->VSSetShader(VS, nullptr, 0);
@@ -536,6 +557,7 @@ void D3D11Renderer::RenderDebugPrimitives(GameMemory* gameMemory, DebugPrimitive
     if (primitives.Lines.empty())
         return;
 
+
     // Build vertex list
     std::vector<DebugVertex> vertices;
     vertices.reserve(primitives.Lines.size() * 2);
@@ -568,6 +590,8 @@ void D3D11Renderer::RenderDebugPrimitives(GameMemory* gameMemory, DebugPrimitive
     D3d11DeviceContext->UpdateSubresource(DebugConstantBuffer, 0, nullptr, &ConstantBuffer, 0, 0);
     D3d11DeviceContext->VSSetConstantBuffers(0, 1, &DebugConstantBuffer);
     D3d11DeviceContext->PSSetConstantBuffers(0, 1, &DebugConstantBuffer);
+
+    D3d11DeviceContext->OMSetDepthStencilState(NoDepthTestState, 0);
 
     // Draw all lines
     D3d11DeviceContext->Draw(static_cast<UINT>(vertices.size()), 0);

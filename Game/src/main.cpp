@@ -114,13 +114,11 @@ void Run()
 
         _Renderer->RenderScene(_GameMemory.get());
 
-        
+        _Renderer->RenderDebugPrimitives(_GameMemory.get(), _DebugPrimitives);
 
         _Renderer->RenderText(_LoadedFontGlyphs,
             _GameResolutionWidth, _GameResolutionHeight,
             fpsStr, 0, 0, textScale, textColor);
-
-        _Renderer->RenderDebugPrimitives(_GameMemory.get(), _DebugPrimitives);
 
         if (_EditMode)
         {
@@ -147,6 +145,8 @@ void Run()
         std::chrono::duration<double> elapsed = currentTime - previousTime;
         previousTime = currentTime;
         deltaTime = static_cast<float>(elapsed.count());
+
+        _DebugPrimitives.Lines.clear();
     }
 }
 
@@ -193,9 +193,6 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameMemory* gam
     //_SineWave = GenerateSineWave(_SampleRate, frequency, duration);
 
     _SineWave = LoadWavFile("assets/audio/jump.wav");
-
-    _DebugPrimitives.Lines.push_back({ {2.f,2.f,2.f}, {30.f,30.f,30.f}, {1.f,0.f,0.f} });
-    _DebugPrimitives.Lines.push_back({ {5.f,5.f,5.f}, {-20.f,20.f,-20.f}, {1.f,0.f,0.f} });
 }
 
 void UploadMeshesToGPU(GameMemory* gameState)
@@ -475,9 +472,9 @@ void UpdateGame(const float dt, GameMemory* gameState)
 {
     //Keep the cubes rotating
     static float angle = {};
-    angle += 0.5f * dt;
-    if (angle > 6.28f)
-        angle = 0.0f;
+    //angle += 0.5f * dt;
+    //if (angle > 6.28f)
+    //    angle = 0.0f;
 
     V3 lightDir = Normalize({ 0.5f, 1.0f, 0.5f });
     gameState->World.DirectionalLight.Ambient = { 0.4f, 0.4f, 0.4f };
@@ -497,6 +494,24 @@ void UpdateGame(const float dt, GameMemory* gameState)
 		M4 scale = MatrixScaling(1.0f, 1.0f, 1.0f);
 
 		entity.WorldMatrix = scale * translation * rotation;
+
+        for (const auto& skeleton : entity.Model.Skeletons)
+        {
+            for (int j = 1; j < skeleton.Joints.size(); ++j)
+            {
+                const Joint& bone = skeleton.Joints[j];
+                M4 bindMatrix = MatrixInverse(bone.InverseBindTransform);
+                V3 start = { bindMatrix.M[3][0], bindMatrix.M[3][1], bindMatrix.M[3][2] };
+
+                for (int child : bone.Children)
+                {
+                    M4 childBind = MatrixInverse(skeleton.Joints[child].InverseBindTransform);
+                    V3 end = { childBind.M[3][0], childBind.M[3][1], childBind.M[3][2] };
+
+                    _DebugPrimitives.Lines.push_back({ start, end, {1.f,1.f,1.f} });
+                };
+            }
+        }
 
         UpdateAnimator(entity.Model.Animator, dt);
     }
