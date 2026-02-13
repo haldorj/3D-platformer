@@ -75,6 +75,35 @@ static void UpdateAnimator(Animator& animator, float deltaTime)
     UpdateAnimation(animator, animator.CurrentTime);
 }
 
+/*
+
+Multiplication order for skeletal animation
+Model space -> Animation pose -> World Space
+
+Matrix multiplication happens from right to left
+scale * translation * rotation; <---
+We are able to pre and post multiply a matrix with another matrix
+
+Calculating the animation pose
+A: inverse bind matrix
+B: rotation/scale
+C: translation
+D: Parent's Transform
+T = D * C * B * A
+
+CPU Skinning
+1. Go through every bone
+- Calculate the T*R*S model matrix for this animation frame (C*B)
+- If this bone has a parent, post multiply the parents transform (D)
+- IMPORTANT: make sure the first bone we deal with have no children.
+2. Go through every bone a second time
+- Pre-multiply the inverse bind matrix
+T = (DCB) * A
+
+*/
+
+
+
 void UpdateAnimation(Animator& animator, float time)
 {
     if (!animator.CurrentAnimation || !animator.TargetSkeleton)
@@ -83,44 +112,48 @@ void UpdateAnimation(Animator& animator, float time)
     auto& anim = *animator.CurrentAnimation;
     auto& skeleton = *animator.TargetSkeleton;
 
-    std::array<M4, 100> localTransforms{};
-
-    for (auto& bone : skeleton.Joints)
-        localTransforms[skeleton.NodeIndexToJointID[bone.ID]] = MatrixIdentity();
-
-    for (auto& channel : anim.Channels)
+    for (auto& joint : skeleton.Joints)
     {
-        auto it = skeleton.NodeIndexToJointID.find(channel.TargetNode);
-        if (it == skeleton.NodeIndexToJointID.end())
-            continue;
-        int boneIndex = it->second;
+        int targetID = joint.ID;
 
         V3   t{ 0,0,0 };
         Quat r{ 1,0,0,0 };
         V3   s{ 1,1,1 };
 
-        if (!channel.Translations.empty()) t = InterpolateVec3(channel.Times, channel.Translations, time);
-        if (!channel.Rotations.empty())    r = InterpolateQuat(channel.Times, channel.Rotations, time);
-        if (!channel.Scales.empty())       s = InterpolateVec3(channel.Times, channel.Scales, time);
+        for (auto& channel : anim.Channels)
+        {
+            if (targetID != channel.TargetNode)
+                continue;
 
-        localTransforms[boneIndex] =
-            MatrixTranslation(t.X, t.Y, t.Z) *
-            MatrixFromQuaternion(r) *
-            MatrixScaling(s.X, s.Y, s.Z);
+            if (!channel.Translations.empty()) 
+                t = InterpolateVec3(channel.Times, channel.Translations, time);
+            if (!channel.Rotations.empty())    
+                r = InterpolateQuat(channel.Times, channel.Rotations, time);
+            if (!channel.Scales.empty())       
+                s = InterpolateVec3(channel.Times, channel.Scales, time);
+
+            joint.LocalTransform =
+                MatrixTranslation(t.X, t.Y, t.Z) *
+                MatrixFromQuaternion(r) *
+                MatrixScaling(s.X, s.Y, s.Z);
+
+            break;
+        }
     }
 
-    std::function<void(int, const M4&)> Recurse =
-        [&](int boneIndex, const M4& parentTransform)
+    for (auto& joint : skeleton.Joints)
+    {
+        M4 ParentTransform{};
+        if (bool hasParent = joint.Parent >= 0 && joint.Parent < (int)skeleton.Joints.size())
         {
-            M4 global = parentTransform * localTransforms[boneIndex];
-            Joint& joint = skeleton.Joints[boneIndex];
+            ParentTransform = skeleton.Joints[joint.Parent].LocalTransform;
+        }
+        else
+        {
+            ParentTransform = MatrixIdentity();
+        }
 
-            animator.FinalBoneTransforms[boneIndex] = global * joint.InverseBindTransform;
-
-            for (int childIndex : skeleton.Joints[boneIndex].Children)
-                Recurse(childIndex, global);
-        };
-
-    if (skeleton.RootJoint >= 0)
-        Recurse(skeleton.RootJoint, MatrixIdentity());
+        animator.FinalBoneTransforms[joint.ID] =
+            ParentTransform * joint.LocalTransform * joint.InverseBindTransform;
+    }
 }

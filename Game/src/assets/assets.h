@@ -32,24 +32,18 @@ struct Joint
 {
     // Inverted model-space bind transform (bone to model origin).
     M4 InverseBindTransform{};
-
-    // The transformation needed to position the joint from its 
-    // original position to the current pose.
-    // This will be uploaded to the shader.
-    M4 AnimatedTransform{};
+    M4 LocalTransform{};
 
     std::string Name{};
-    // Bones connected to this bone.
-    std::vector<int> Children{};
     int32_t ID{};
+    int32_t Parent{};
+    std::vector<int> Children{};
 };
 
 struct Skeleton 
 {
+    std::unordered_map<int, int> JointIDToArrayIndex;
     std::vector<Joint> Joints;
-    std::unordered_map<int, int> NodeIndexToJointID;
-    int32_t RootJoint{ -1 };
-    uint32_t JointCount{};
 };
 
 struct AnimationChannel 

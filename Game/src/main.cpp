@@ -527,6 +527,7 @@ void UpdateGame(const float dt, GameMemory* gameState)
 		    rotation = MatrixRotationY(angle);
 		M4 scale = MatrixScaling(1.0f, 1.0f, 1.0f);
 
+        // Matrix multiplications happen right to left <--
 		entity.WorldMatrix = scale * translation * rotation;
 
         V3 color = { 1.f,1.f,1.f };
@@ -534,17 +535,6 @@ void UpdateGame(const float dt, GameMemory* gameState)
         {
             for (int j = 1; j < skeleton.Joints.size(); ++j)
             {
-                const Joint& bone = skeleton.Joints[j];
-                M4 bindMatrix = MatrixInverse(bone.InverseBindTransform);
-                V3 start = { bindMatrix.M[3][0], bindMatrix.M[3][1], bindMatrix.M[3][2] };
-
-                for (int child : bone.Children)
-                {
-                    M4 childBind = MatrixInverse(skeleton.Joints[child].InverseBindTransform);
-                    V3 end = { childBind.M[3][0], childBind.M[3][1], childBind.M[3][2] };
-
-                    DrawDebugLine3D(start, end, color);
-                };
             }
         }
 

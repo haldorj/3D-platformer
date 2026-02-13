@@ -150,33 +150,38 @@ Model ModelLoader::LoadGLTFModel(const std::string& filename)
             inverseBind = GetAttributeData<M4>(skin.inverse_bind_matrices);
 
         std::unordered_map<int, int> nodeToJoint;
+        nodeToJoint.reserve(skin.joints_count);
         for (size_t j = 0; j < skin.joints_count; ++j)
+        {
             nodeToJoint[int(skin.joints[j] - data->nodes)] = int(j);
-
-        skeleton.Joints.reserve(skin.joints_count);
+        }
+        skeleton.JointIDToArrayIndex = nodeToJoint;
+        skeleton.Joints.resize(skin.joints_count);
         for (size_t j = 0; j < skin.joints_count; ++j)
         {
             Joint joint{};
             joint.ID = int(skin.joints[j] - data->nodes);
             joint.Name = skin.joints[j]->name;
+
             if (!inverseBind.empty() && j < inverseBind.size())
                 joint.InverseBindTransform = inverseBind[j];
-            joint.Children.clear();
 
             const cgltf_node* node = skin.joints[j];
+            if (node->parent)
+            {
+                joint.Parent = int(node->parent - data->nodes);
+            }
+
             for (size_t c = 0; c < node->children_count; ++c)
             {
                 int childNode = int(node->children[c] - data->nodes);
-                auto it = nodeToJoint.find(childNode);
-                if (it != nodeToJoint.end())
-                    joint.Children.push_back(it->second);
+                joint.Children.push_back(childNode);
             }
-            skeleton.Joints.push_back(std::move(joint));
-        }
 
-        skeleton.NodeIndexToJointID = nodeToJoint;
-        skeleton.RootJoint = (skin.skeleton) ? nodeToJoint[int(skin.skeleton - data->nodes)] : 0;
-        skeleton.JointCount = static_cast<uint32_t>(skin.joints_count);
+            auto Index = nodeToJoint.find(joint.ID)->second;
+
+            skeleton.Joints[Index] = (std::move(joint));
+        }
         result.Skeletons.push_back(std::move(skeleton));
     }
 
