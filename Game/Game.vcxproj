@@ -122,6 +122,7 @@
     <ClInclude Include="src\renderer\renderer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\assets\animator.cpp" />
     <ClCompile Include="src\assets\model_loader.cpp" />
     <ClCompile Include="src\assets\sound.cpp" />
     <ClCompile Include="src\impl.cpp" />

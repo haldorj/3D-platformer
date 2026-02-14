@@ -217,7 +217,7 @@ void UploadMeshesToGPU(GameMemory* gameState)
     Entity& entity = gameState->World.Entities[0];
 	entity.Model = model;
 
-    PlayAnimation(entity.Model.Animator,
+    AnimationSystem::PlayAnimation(entity.Model.Animator,
         &entity.Model.Animations[0], &entity.Model.Skeletons[0], 1.0f, true);
 
     gameState->World.Entities[1] = LoadTerrain("assets/textures/terrain.png", {0.f, -21.f, 0.f});
@@ -538,7 +538,7 @@ void UpdateGame(const float dt, GameMemory* gameState)
             }
         }
 
-        UpdateAnimator(entity.Model.Animator, dt);
+        AnimationSystem::UpdateAnimator(entity.Model.Animator, dt);
         //std::println("");
     }
 }
