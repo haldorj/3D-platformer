@@ -15,5 +15,8 @@ private:
     static std::vector<uint32_t> GetIndices(const cgltf_accessor* accessor);
 
     template<typename T>
-    static std::vector<T> GetAttributeData(const cgltf_accessor* accessor);
+    static std::vector<T> GetAttributeDataFloat(const cgltf_accessor* accessor);
+
+    template<typename T>
+    static std::vector<T> GetAttributeDataUINT(const cgltf_accessor* accessor);
 };

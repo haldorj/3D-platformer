@@ -21,7 +21,7 @@ struct V4
 
 struct IV4
 {
-	int32_t X, Y, Z, W;
+	int X, Y, Z, W;
 };
 
 struct Quat
@@ -193,13 +193,7 @@ inline float Length(const V3& a)
 
 inline V3 V3Lerp(const V3& from, const V3& to, float t)
 {
-	V3 out{};
-
-	out.X = from.X * (1.0f - t) + to.X * t;
-	out.Y = from.Y * (1.0f - t) + to.Y * t;
-	out.Z = from.Z * (1.0f - t) + to.Z * t;
-
-	return out;
+	return from * (1.0f - t) + to * t;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -548,7 +542,7 @@ inline M4 MatrixRotationZ(const float angle)
 }
 
 
-inline M4 MatrixTranslation(const float x, const float y, const float z)
+inline M4 MatrixTranslation(const V3& in)
 {
 	M4 result = MatrixIdentity();
 
@@ -557,15 +551,15 @@ inline M4 MatrixTranslation(const float x, const float y, const float z)
 	// [0][0][1][z]
 	// [0][0][0][1]
 
-	result.M[3][0] = x;
-	result.M[3][1] = y;
-	result.M[3][2] = z;
+	result.M[3][0] = in.X;
+	result.M[3][1] = in.Y;
+	result.M[3][2] = in.Z;
 	result.M[3][3] = 1.0f;
 
 	return result;
 };
 
-inline M4 MatrixScaling(const float x, const float y, const float z)
+inline M4 MatrixScaling(const V3& in)
 {
 	M4 result = {};
 
@@ -574,9 +568,9 @@ inline M4 MatrixScaling(const float x, const float y, const float z)
 	// [0][0][z][0]
 	// [0][0][0][1]
 
-	result.M[0][0] = x;
-	result.M[1][1] = y;
-	result.M[2][2] = z;
+	result.M[0][0] = in.X;
+	result.M[1][1] = in.Y;
+	result.M[2][2] = in.Z;
 	result.M[3][3] = 1.0f;
 
 	return result;

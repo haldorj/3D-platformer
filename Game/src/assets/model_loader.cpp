@@ -147,7 +147,7 @@ Model ModelLoader::LoadGLTFModel(const std::string& filename)
 
         std::vector<M4> inverseBind;
         if (skin.inverse_bind_matrices)
-            inverseBind = GetAttributeData<M4>(skin.inverse_bind_matrices);
+            inverseBind = GetAttributeDataFloat<M4>(skin.inverse_bind_matrices);
 
         std::unordered_map<int, int> nodeToJoint;
         nodeToJoint.reserve(skin.joints_count);
@@ -172,15 +172,7 @@ Model ModelLoader::LoadGLTFModel(const std::string& filename)
                 joint.Parent = int(node->parent - data->nodes);
             }
 
-            for (size_t c = 0; c < node->children_count; ++c)
-            {
-                int childNode = int(node->children[c] - data->nodes);
-                joint.Children.push_back(childNode);
-            }
-
-            auto Index = nodeToJoint.find(joint.ID)->second;
-
-            skeleton.Joints[Index] = (std::move(joint));
+            skeleton.Joints[j] = (std::move(joint));
         }
         result.Skeletons.push_back(std::move(skeleton));
     }
@@ -193,33 +185,89 @@ Model ModelLoader::LoadGLTFModel(const std::string& filename)
         Animation anim{};
         anim.Name = animData.name ? animData.name : "";
 
+        // Loop over animation channels
         for (size_t j = 0; j < animData.channels_count; ++j)
         {
-            const cgltf_animation_channel& chData = animData.channels[j];
-            const cgltf_animation_sampler& samp = *chData.sampler;
+            const cgltf_animation_channel& channel = animData.channels[j];
+            const cgltf_animation_sampler& sampler = *channel.sampler;
 
-            AnimationChannel ch{};
-            ch.TargetNode = int(chData.target_node - data->nodes);
-            ch.Path = cgltf_animation_path_type_translation == chData.target_path ? "translation" :
-                cgltf_animation_path_type_rotation == chData.target_path ? "rotation" :
-                cgltf_animation_path_type_scale == chData.target_path ? "scale" : "unknown";
+            // Get target joint index
+            if (!channel.target_node) continue; // skip non-joint animations
+            int targetNode = int(channel.target_node - data->nodes);
+            JointAnimation& jointAnim = anim.PerJointAnimationPoses[targetNode];
+            jointAnim.TargetNode = channel.target_node->name;
 
-            ch.Times = GetAttributeData<float>(samp.input);
-            if (ch.Path == "translation")
-                ch.Translations = GetAttributeData<V3>(samp.output);
-            else if (ch.Path == "rotation")
-                ch.Rotations = GetAttributeData<Quat>(samp.output);
-            else if (ch.Path == "scale")
-                ch.Scales = GetAttributeData<V3>(samp.output);
+            // --- Load keyframe times ---
+            const cgltf_accessor* inputAccessor = sampler.input;
+            std::vector<float> times(inputAccessor->count);
+            cgltf_accessor_unpack_floats(inputAccessor, times.data(), inputAccessor->count);
 
-            anim.Channels.push_back(std::move(ch));
+            // --- Load keyframe values ---
+            const cgltf_accessor* outputAccessor = sampler.output;
+
+            switch (channel.target_path)
+            {
+            case cgltf_animation_path_type_translation:
+            {
+                std::vector<float> values(outputAccessor->count * 3);
+                cgltf_accessor_unpack_floats(outputAccessor, values.data(), values.size());
+
+                for (size_t k = 0; k < outputAccessor->count; ++k)
+                {
+                    KeyframeV3 kf{};
+                    kf.Time = times[k];
+                    kf.Value = { values[k * 3 + 0], values[k * 3 + 1], values[k * 3 + 2] };
+                    jointAnim.Translations.push_back(kf);
+                }
+                break;
+            }
+
+            case cgltf_animation_path_type_rotation:
+            {
+                std::vector<float> values(outputAccessor->count * 4);
+                cgltf_accessor_unpack_floats(outputAccessor, values.data(), values.size());
+
+                for (size_t k = 0; k < outputAccessor->count; ++k)
+                {
+                    KeyframeQuat kf{};
+                    kf.Time = times[k];
+                    kf.Value = Quat{
+                        values[k * 4 + 0],
+                        values[k * 4 + 1],
+                        values[k * 4 + 2],
+                        values[k * 4 + 3]
+                    };
+                    // Normalize quaternion (GLTF quats are not guaranteed normalized)
+                    //kf.Value = Normalize(kf.Value);
+                    jointAnim.Rotations.push_back(kf);
+                }
+                break;
+            }
+
+            case cgltf_animation_path_type_scale:
+            {
+                std::vector<float> values(outputAccessor->count * 3);
+                cgltf_accessor_unpack_floats(outputAccessor, values.data(), values.size());
+
+                for (size_t k = 0; k < outputAccessor->count; ++k)
+                {
+                    KeyframeV3 kf{};
+                    kf.Time = times[k];
+                    kf.Value = { values[k * 3 + 0], values[k * 3 + 1], values[k * 3 + 2] };
+                    jointAnim.Scales.push_back(kf);
+                }
+                break;
+            }
+
+            default:
+                // weights/morph targets not handled here
+                break;
+            }
+
+            // Track the maximum time for animation duration
+            if (!times.empty())
+                anim.Duration = std::max<float>(anim.Duration, times.back());
         }
-
-        anim.Duration = 0.0f;
-        for (const auto& ch : anim.Channels)
-            if (!ch.Times.empty())
-                anim.Duration = std::max<float>(anim.Duration, ch.Times.back());
-
         result.Animations.push_back(std::move(anim));
     }
 
@@ -254,11 +302,11 @@ Mesh ModelLoader::LoadMesh(const cgltf_data* data, const cgltf_mesh* gltfMesh, c
             }
         }
 
-        std::vector<V3> positions = pos ? GetAttributeData<V3>(pos) : std::vector<V3>{};
-        std::vector<V3> normals = normal ? GetAttributeData<V3>(normal) : std::vector<V3>{};
-        std::vector<V2> texcoords = uv ? GetAttributeData<V2>(uv) : std::vector<V2>{};
-        std::vector<IV4> jointData = joints ? GetAttributeData<IV4>(joints) : std::vector<IV4>{};
-        std::vector<V4> weightData = weights ? GetAttributeData<V4>(weights) : std::vector<V4>{};
+        std::vector<V3> positions = pos ? GetAttributeDataFloat<V3>(pos) : std::vector<V3>{};
+        std::vector<V3> normals = normal ? GetAttributeDataFloat<V3>(normal) : std::vector<V3>{};
+        std::vector<V2> texcoords = uv ? GetAttributeDataFloat<V2>(uv) : std::vector<V2>{};
+        std::vector<IV4> jointData = joints ? GetAttributeDataUINT<IV4>(joints) : std::vector<IV4>{};
+        std::vector<V4> weightData = weights ? GetAttributeDataFloat<V4>(weights) : std::vector<V4>{};
 
         result.Vertices.resize(positions.size());
         for (size_t i = 0; i < positions.size(); ++i)
@@ -321,10 +369,20 @@ std::vector<uint32_t> ModelLoader::GetIndices(const cgltf_accessor* accessor)
 }
 
 template<typename T>
-std::vector<T> ModelLoader::GetAttributeData(const cgltf_accessor* accessor)
+std::vector<T> ModelLoader::GetAttributeDataFloat(const cgltf_accessor* accessor)
 {
     std::vector<T> result(accessor->count);
     for (size_t i = 0; i < accessor->count; ++i)
         cgltf_accessor_read_float(accessor, i, reinterpret_cast<float*>(&result[i]), sizeof(T) / sizeof(float));
     return result;
 }
+
+template<typename T>
+std::vector<T> ModelLoader::GetAttributeDataUINT(const cgltf_accessor* accessor)
+{
+    std::vector<T> result(accessor->count);
+    for (size_t i = 0; i < accessor->count; ++i)
+        cgltf_accessor_read_uint(accessor, i, reinterpret_cast<unsigned int*>(&result[i]), sizeof(T) / sizeof(unsigned int));
+    return result;
+}
+

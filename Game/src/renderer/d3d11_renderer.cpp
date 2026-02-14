@@ -631,8 +631,9 @@ void D3D11Renderer::RenderText(std::unordered_map<char, FontGlyph>& glyphs,
         const float xPos = x + glyph.Bearing.X * scale;
         const float yPos = y - (glyph.Size.Y - glyph.Bearing.Y) * scale;
 
-        const M4 scaling = MatrixScaling(glyph.Size.X * scale, glyph.Size.Y * scale, 1.0f); // scale unit quad to pixel size
-        const M4 translation = MatrixTranslation(xPos, yPos, 0.0f);
+        
+        const M4 scaling = MatrixScaling({ glyph.Size.X * scale, glyph.Size.Y * scale, 1.0f }); // scale unit quad to pixel size
+        const M4 translation = MatrixTranslation({ xPos, yPos, 0.0f });
         const M4 model = scaling * translation;
 
         CbPerObj = {};

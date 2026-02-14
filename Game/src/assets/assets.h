@@ -32,12 +32,12 @@ struct Joint
 {
     // Inverted model-space bind transform (bone to model origin).
     M4 InverseBindTransform{};
+    M4 GlobalTransform{};
     M4 LocalTransform{};
 
     std::string Name{};
     int32_t ID{};
     int32_t Parent{};
-    std::vector<int> Children{};
 };
 
 struct Skeleton 
@@ -46,23 +46,31 @@ struct Skeleton
     std::vector<Joint> Joints;
 };
 
-struct AnimationChannel 
+struct KeyframeV3 
 {
-    std::string Path{};
-
-    std::vector<float> Times{};
-    std::vector<V3> Translations{};
-    std::vector<Quat> Rotations{};
-    std::vector<V3> Scales{};
-
-    int32_t TargetNode{};
+    float Time;
+    V3 Value;
 };
 
-struct Animation 
+struct KeyframeQuat 
 {
-    std::string Name{};
-    std::vector<AnimationChannel> Channels{};
-    float Duration{};
+    float Time;
+    Quat Value;
+};
+
+struct JointAnimation 
+{
+    std::vector<KeyframeV3> Translations;
+    std::vector<KeyframeQuat> Rotations;
+    std::vector<KeyframeV3> Scales;
+    std::string TargetNode;
+};
+
+struct Animation
+{
+    std::string Name;
+    std::unordered_map<int, JointAnimation> PerJointAnimationPoses;
+    float Duration;
 };
 
 struct Animator

@@ -39,8 +39,8 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 texCoo
 
     float4 skinnedPosition = float4(0.0, 0.0, 0.0, 0.0);
     float4 skinnedNormal = float4(0.0, 0.0, 0.0, 0.0);
-
-    for (int i = 0; i < 4; ++i)
+    int maxBoneInfluence = 4;
+    for (int i = 0; i < maxBoneInfluence; ++i)
     {
         skinnedPosition += mul(GlobalBoneTransform[boneIDs[i]], float4(position.xyz, 1.0f)) * weights[i];
         skinnedNormal += mul(GlobalBoneTransform[boneIDs[i]], float4(normal.xyz, 0.0f)) * weights[i];

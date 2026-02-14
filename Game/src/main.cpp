@@ -521,11 +521,11 @@ void UpdateGame(const float dt, GameMemory* gameState)
 
         entity.WorldMatrix = MatrixIdentity();
         
-		M4 translation = MatrixTranslation(0.0f, 0.0f, i * 2.5f);
+        M4 translation = MatrixTranslation({ 0.0f, 0.0f, i * 2.5f });
         M4 rotation = MatrixIdentity();
         if (i == 0)
 		    rotation = MatrixRotationY(angle);
-		M4 scale = MatrixScaling(1.0f, 1.0f, 1.0f);
+        M4 scale = MatrixScaling({ 1.0f, 1.0f, 1.0f });
 
         // Matrix multiplications happen right to left <--
 		entity.WorldMatrix = scale * translation * rotation;
