@@ -21,6 +21,9 @@
     <ClInclude Include="src\assets\animator.h">
       <Filter>assets</Filter>
     </ClInclude>
+    <ClInclude Include="src\assets\asset_importer.h">
+      <Filter>assets</Filter>
+    </ClInclude>
     <ClInclude Include="src\assets\assets.h">
       <Filter>assets</Filter>
     </ClInclude>
@@ -56,6 +59,12 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\assets\animator.cpp">
+      <Filter>assets</Filter>
+    </ClCompile>
+    <ClCompile Include="src\assets\asset_importer.cpp">
+      <Filter>assets</Filter>
+    </ClCompile>
     <ClCompile Include="src\assets\model_loader.cpp">
       <Filter>assets</Filter>
     </ClCompile>
@@ -70,9 +79,6 @@
     </ClCompile>
     <ClCompile Include="src\renderer\d3d11_renderer.cpp">
       <Filter>renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="src\assets\animator.cpp">
-      <Filter>assets</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -39,6 +39,7 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 texCoo
 
     float4 skinnedPosition = float4(0.0, 0.0, 0.0, 0.0);
     float4 skinnedNormal = float4(0.0, 0.0, 0.0, 0.0);
+
     int maxBoneInfluence = 4;
     for (int i = 0; i < maxBoneInfluence; ++i)
     {
@@ -46,7 +47,7 @@ PSInput VSMain(float4 position : POSITION, float4 normal : NORMAL, float2 texCoo
         skinnedNormal += mul(GlobalBoneTransform[boneIDs[i]], float4(normal.xyz, 0.0f)) * weights[i];
     }
 
-    float4 worldPos = mul(World, skinnedPosition);
+    float4 worldPos = mul(World, position);
     result.position = mul(Projection, mul(View, worldPos));
 
     // Correct normal computation

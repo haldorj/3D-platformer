@@ -1,0 +1,13 @@
+D:/Dev/Abyss/Game/vendor/assimp/CMakeFiles/uninstall.dir
+D:/Dev/Abyss/Game/vendor/assimp/CMakeFiles/UpdateAssimpLibsDebugSymbolsAndDLLs.dir
+D:/Dev/Abyss/Game/vendor/assimp/CMakeFiles/INSTALL.dir
+D:/Dev/Abyss/Game/vendor/assimp/CMakeFiles/ALL_BUILD.dir
+D:/Dev/Abyss/Game/vendor/assimp/CMakeFiles/ZERO_CHECK.dir
+D:/Dev/Abyss/Game/vendor/assimp/contrib/zlib/CMakeFiles/zlibstatic.dir
+D:/Dev/Abyss/Game/vendor/assimp/contrib/zlib/CMakeFiles/INSTALL.dir
+D:/Dev/Abyss/Game/vendor/assimp/contrib/zlib/CMakeFiles/ALL_BUILD.dir
+D:/Dev/Abyss/Game/vendor/assimp/code/CMakeFiles/assimp.dir
+D:/Dev/Abyss/Game/vendor/assimp/code/CMakeFiles/INSTALL.dir
+D:/Dev/Abyss/Game/vendor/assimp/test/CMakeFiles/unit.dir
+D:/Dev/Abyss/Game/vendor/assimp/test/CMakeFiles/INSTALL.dir
+D:/Dev/Abyss/Game/vendor/assimp/test/headercheck/CMakeFiles/INSTALL.dir

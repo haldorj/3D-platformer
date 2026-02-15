@@ -1,8 +1,8 @@
 #pragma once
-#include "assets.h"
-#include <tiny_gltf.h>
-#include <concepts>
-#include <cgltf.h>
+
+struct Model;
+struct Mesh;
+struct Texture;
 
 class ModelLoader
 {

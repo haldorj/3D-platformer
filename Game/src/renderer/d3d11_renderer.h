@@ -1,6 +1,7 @@
 #pragma once
 
 #include "renderer.h"
+#include "game.h"
 
 using Microsoft::WRL::ComPtr;
 

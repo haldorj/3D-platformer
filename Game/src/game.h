@@ -3,6 +3,8 @@
 #include "math/handmade_math.h"
 #include "assets/assets.h"
 
+// TODO: seperate assets and game.
+
 struct DirectionalLight
 {
     V4 Color{};
@@ -34,6 +36,7 @@ struct Camera
 
 struct Entity
 {
+    // TODO: move this out of entity
     Model Model{};
     M4 WorldMatrix{};
 };

@@ -14,8 +14,8 @@ debugdir "%{wks.location}"
 IncludeDir = {}
 IncludeDir["stb"] = "game/vendor/stb"
 IncludeDir["json"] = "game/vendor/json"
-IncludeDir["tinygltf"] = "game/vendor/tinygltf"
 IncludeDir["cgltf"] = "game/vendor/cgltf"
+IncludeDir["assimp"] = "game/vendor/assimp"
 
 project "game"
 	location "game"
@@ -54,14 +54,20 @@ project "game"
 		"%{prj.name}/src",
 		"%{IncludeDir.stb}",
 		"%{IncludeDir.json}",
-		"%{IncludeDir.tinygltf}",
 		"%{IncludeDir.cgltf}",
+		"%{IncludeDir.assimp}/include",
+	}
+
+	libdirs
+	{
+		"%{IncludeDir.assimp}/lib/Release",
 	}
 
 	filter "system:windows"
 		systemversion "latest"
 		links 
 		{ 
+			"assimp-vc143-mt.lib",
 			"d3d11.lib", 
 			"dxgi.lib", 
 			"d3dcompiler.lib",

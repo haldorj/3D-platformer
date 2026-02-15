@@ -2,6 +2,7 @@
 
 #include "model_loader.h"
 #include "math/handmade_math.h"
+#include "assets.h"
 #include "stb_image.h"
 
 static Texture CreateErrorTexture()
@@ -101,7 +102,6 @@ Model ModelLoader::LoadGLTFModel(const std::string& filename)
     std::string basePath = GetBasePath(filename);
 
     // ------------------- Load Textures -------------------
-    std::println("Loading textures...");
     std::vector<Texture> textures;
     for (size_t i = 0; i < data->images_count; ++i)
     {
@@ -237,8 +237,8 @@ Model ModelLoader::LoadGLTFModel(const std::string& filename)
                         values[k * 4 + 2],
                         values[k * 4 + 3]
                     };
-                    // Normalize quaternion (GLTF quats are not guaranteed normalized)
-                    //kf.Value = Normalize(kf.Value);
+
+                    kf.Value = NormalizeQuat(kf.Value);
                     jointAnim.Rotations.push_back(kf);
                 }
                 break;

@@ -1,0 +1,15 @@
+D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\adler32.c;D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\zlibstatic.dir\Release\adler32.obj
+D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\compress.c;D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\zlibstatic.dir\Release\compress.obj
+D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\crc32.c;D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\zlibstatic.dir\Release\crc32.obj
+D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\deflate.c;D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\zlibstatic.dir\Release\deflate.obj
+D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\gzclose.c;D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\zlibstatic.dir\Release\gzclose.obj
+D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\gzlib.c;D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\zlibstatic.dir\Release\gzlib.obj
+D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\gzread.c;D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\zlibstatic.dir\Release\gzread.obj
+D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\gzwrite.c;D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\zlibstatic.dir\Release\gzwrite.obj
+D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\inflate.c;D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\zlibstatic.dir\Release\inflate.obj
+D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\infback.c;D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\zlibstatic.dir\Release\infback.obj
+D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\inftrees.c;D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\zlibstatic.dir\Release\inftrees.obj
+D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\inffast.c;D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\zlibstatic.dir\Release\inffast.obj
+D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\trees.c;D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\zlibstatic.dir\Release\trees.obj
+D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\uncompr.c;D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\zlibstatic.dir\Release\uncompr.obj
+D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\zutil.c;D:\Dev\Abyss\Game\vendor\assimp\contrib\zlib\zlibstatic.dir\Release\zutil.obj

@@ -162,9 +162,14 @@ inline float Dot(const V3& a, const V3& b)
 	return a.X * b.X + a.Y * b.Y + a.Z * b.Z;
 };
 
+inline float Length(const V3& a)
+{
+	return sqrtf(a.X * a.X + a.Y * a.Y + a.Z * a.Z);
+};
+
 inline V3 Normalize(const V3& a)
 {
-	const float length = sqrtf(a.X * a.X + a.Y * a.Y + a.Z * a.Z);
+	const float length = Length(a);
 
 	if (length == 0.0f)
 	{
@@ -186,14 +191,10 @@ inline V2 Normalize2D(const V3& a)
 	return {a.X / length, a.Y / length};
 };
 
-inline float Length(const V3& a)
+static V3 V3Lerp(const V3& from, const V3& to, float t)
 {
-	return sqrtf(a.X * a.X + a.Y * a.Y + a.Z * a.Z);
-};
-
-inline V3 V3Lerp(const V3& from, const V3& to, float t)
-{
-	return from * (1.0f - t) + to * t;
+	V3 result = from + (to - from) * t;
+	return result;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -248,9 +249,11 @@ inline float Dot(const Quat& from, const Quat& to)
 
 inline Quat NormalizeQuat(const Quat& q)
 {
-	float len = sqrtf(q.X * q.X + q.Y * q.Y + q.Z * q.Z + q.W * q.W);
-	if (len == 0.0f) return { 0,0,0,1 };
-	float inv = 1.0f / len;
+	float length = sqrtf(q.X * q.X + q.Y * q.Y + q.Z * q.Z + q.W * q.W);
+	if (length == 0.0f) 
+		return { 0.0f, 0.0f, 0.0f, 1.0f };
+
+	float inv = 1.0f / length;
 	Quat result = { q.X * inv, q.Y * inv, q.Z * inv, q.W * inv };
 
 	return result;

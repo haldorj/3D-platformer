@@ -1,0 +1,10 @@
+^D:\DEV\ABYSS\GAME\VENDOR\ASSIMP\CMAKEFILES\54652EA9DAFC4C46744D9F1CCF6228A3\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SD:/Dev/Abyss/Game/vendor/assimp -BD:/Dev/Abyss/Game/vendor/assimp --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file D:/Dev/Abyss/Game/vendor/assimp/Assimp.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

@@ -1,7 +1,6 @@
 #include <pch.h>
 
 #include "animator.h"
-#include <math/handmade_math.h>
 #include <assets/assets.h>
 
 void AnimationSystem::PlayAnimation(Animator& animator, Animation* animation,
@@ -36,6 +35,53 @@ void AnimationSystem::UpdateAnimator(Animator& animator, float deltaTime)
     UpdateAnimation(animator);
 }
 
+M4 AnimationSystem::CalculateJointLocalTransform(const JointAnimation& jointAnimation, float currentAnimationTime)
+{
+    V3 t{ 0,0,0 };
+    Quat r{ 1,0,0,0 };
+    V3 s{ 1,1,1 };
+
+    // Helper lambda to find interpolated value for each track
+    auto interpolateVec3 = [&](const std::vector<KeyframeV3>& frames, V3& out) {
+        if (frames.empty()) return;
+        if (currentAnimationTime <= frames.front().Time) { out = frames.front().Value; return; }
+        if (currentAnimationTime >= frames.back().Time) { out = frames.back().Value;  return; }
+        for (size_t i = 0; i + 1 < frames.size(); ++i) {
+            if (frames[i + 1].Time >= currentAnimationTime) {
+                float total = frames[i + 1].Time - frames[i].Time;
+                float local = currentAnimationTime - frames[i].Time;
+                float t01 = local / total;
+                out = V3Lerp(frames[i].Value, frames[i + 1].Value, t01);
+                return;
+            }
+        }
+        };
+
+    auto interpolateQuat = [&](const std::vector<KeyframeQuat>& frames, Quat& out) {
+        if (frames.empty()) return;
+        if (currentAnimationTime <= frames.front().Time) { out = frames.front().Value; return; }
+        if (currentAnimationTime >= frames.back().Time) { out = frames.back().Value;  return; }
+        for (size_t i = 0; i + 1 < frames.size(); ++i) {
+            if (frames[i + 1].Time >= currentAnimationTime) {
+                float total = frames[i + 1].Time - frames[i].Time;
+                float local = currentAnimationTime - frames[i].Time;
+                float t01 = local / total;
+                out = Slerp(frames[i].Value, frames[i + 1].Value, t01);
+                return;
+            }
+        }
+        };
+
+    interpolateVec3(jointAnimation.Translations, t);
+    interpolateQuat(jointAnimation.Rotations, r);
+    interpolateVec3(jointAnimation.Scales, s);
+
+    // Choose TRS ordering based on your math conventions
+    //return MatrixScaling(s) * MatrixFromQuaternion(r) * MatrixTranslation(t);
+    return MatrixTranslation(t) * MatrixFromQuaternion(r) * MatrixScaling(s);
+}
+
+
 /*
 
 Multiplication order for skeletal animation
@@ -63,69 +109,6 @@ T = (DCB) * A
 
 */
 
-M4 AnimationSystem::CalculateJointLocalTransform(const JointAnimation& jointAnimation, float currentAnimationTime)
-{
-    V3   t{ 0,0,0 };
-    Quat r{ 1,0,0,0 };
-    V3   s{ 1,1,1 };
-
-    if (!jointAnimation.Translations.empty())
-    {
-        auto& currentFrame = jointAnimation.Translations[0];
-        for (int i = 1; i < jointAnimation.Translations.size(); ++i)
-        {
-            auto& nextFrame = jointAnimation.Translations[i];
-            if (nextFrame.Time > currentAnimationTime)
-            {
-                float totalTime = nextFrame.Time - currentFrame.Time;
-                float currentTime = currentAnimationTime - currentFrame.Time;
-                float progression = currentTime / totalTime;
-
-                t = V3Lerp(currentFrame.Value, nextFrame.Value, progression);
-                break;
-            }
-        }
-    }
-
-    if (!jointAnimation.Rotations.empty())
-    {
-        auto& currentFrame = jointAnimation.Rotations[0];
-        for (int i = 1; i < jointAnimation.Rotations.size(); ++i)
-        {
-            auto& nextFrame = jointAnimation.Rotations[i];
-            if (nextFrame.Time > currentAnimationTime)
-            {
-                float totalTime = nextFrame.Time - currentFrame.Time;
-                float currentTime = currentAnimationTime - currentFrame.Time;
-                float progression = currentTime / totalTime;
-
-                r = Slerp(currentFrame.Value, nextFrame.Value, progression);
-                break;
-            }
-        }
-    }
-
-    if (!jointAnimation.Scales.empty())
-    {
-        auto& currentFrame = jointAnimation.Scales[0];
-        for (int i = 1; i < jointAnimation.Scales.size(); ++i)
-        {
-            auto& nextFrame = jointAnimation.Scales[i];
-            if (nextFrame.Time > currentAnimationTime)
-            {
-                float totalTime = nextFrame.Time - currentFrame.Time;
-                float currentTime = currentAnimationTime - currentFrame.Time;
-                float progression = currentTime / totalTime;
-
-                s = V3Lerp(currentFrame.Value, nextFrame.Value, progression);
-                break;
-            }
-        }
-    }
-    //return MatrixScaling(s) * MatrixFromQuaternion(r) * MatrixTranslation(t);
-    return MatrixTranslation(t) * MatrixFromQuaternion(r) * MatrixScaling(s);
-}
-
 void AnimationSystem::UpdateAnimation(Animator& animator)
 {
     if (!animator.CurrentAnimation || !animator.TargetSkeleton)
@@ -142,8 +125,7 @@ void AnimationSystem::UpdateAnimation(Animator& animator)
         // 1. TRS model matrix
         joint.LocalTransform =
             CalculateJointLocalTransform(targetJointAnim, animator.CurrentTime);
-
-        // 2. Post-multiply the parents transform
+        
         M4 parentGlobalTransform{};
         if (bool hasParent = joint.Parent >= 0 && joint.Parent < (int)skeleton.Joints.size())
         {
@@ -155,13 +137,13 @@ void AnimationSystem::UpdateAnimation(Animator& animator)
             parentGlobalTransform = MatrixIdentity();
         }
 
+        // 2. Post-multiply the parents transform
         joint.GlobalTransform = parentGlobalTransform * joint.LocalTransform;
-        animator.FinalBoneTransforms[joint.ID] = joint.GlobalTransform;
     }
 
     for (auto& joint : skeleton.Joints)
     {
         animator.FinalBoneTransforms[joint.ID] =
-            animator.FinalBoneTransforms[joint.ID] * joint.InverseBindTransform;
+            joint.GlobalTransform * joint.InverseBindTransform;
     }
 }

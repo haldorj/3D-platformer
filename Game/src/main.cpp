@@ -1,8 +1,9 @@
 #include "pch.h"
 
 #include <game.h>
-#include <assets/model_loader.h>
-#include <assets/animator.h>
+//#include <assets/model_loader.h>
+//#include <assets/animator.h>
+#include <assets/asset_importer.h>
 
 #ifdef _WIN32
 #include <platform/win32_platform.h>
@@ -208,7 +209,8 @@ void UploadMeshesToGPU(GameMemory* gameState)
     Assert(_Renderer);
 
     Model model{};
-    model = ModelLoader::LoadGLTFModel("assets/models/dummy_platformer.gltf");
+    //model = ModelLoader::LoadGLTFModel("assets/models/dummy_platformer.gltf");
+    AssetImporter::LoadModel("assets/models/dummy_platformer.gltf", model);
     for (auto& mesh : model.Meshes)
     {
         _Renderer->UploadMeshesToGPU(mesh);
@@ -217,8 +219,8 @@ void UploadMeshesToGPU(GameMemory* gameState)
     Entity& entity = gameState->World.Entities[0];
 	entity.Model = model;
 
-    AnimationSystem::PlayAnimation(entity.Model.Animator,
-        &entity.Model.Animations[0], &entity.Model.Skeletons[0], 1.0f, true);
+    //AnimationSystem::PlayAnimation(entity.Model.Animator,
+    //    &entity.Model.Animations[3], &entity.Model.Skeletons[0], 1.0f, true);
 
     gameState->World.Entities[1] = LoadTerrain("assets/textures/terrain.png", {0.f, -21.f, 0.f});
     for (auto& mesh : gameState->World.Entities[1].Model.Meshes)
@@ -535,11 +537,12 @@ void UpdateGame(const float dt, GameMemory* gameState)
         {
             for (int j = 1; j < skeleton.Joints.size(); ++j)
             {
+
             }
         }
 
-        AnimationSystem::UpdateAnimator(entity.Model.Animator, dt);
-        //std::println("");
+        //AnimationSystem::UpdateAnimator(entity.Model.Animator, dt);
+        ////std::println("");
     }
 }
 

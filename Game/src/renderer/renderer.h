@@ -1,6 +1,12 @@
 #pragma once
 
-#include "game.h"
+#include "math/handmade_math.h"
+
+class Platform;
+struct GameMemory;
+struct Mesh;
+struct FontGlyph;
+struct Texture;
 
 struct DebugLine
 {
@@ -9,12 +15,12 @@ struct DebugLine
 	V3 Color;
 };
 
+
 struct DebugPrimitives
 {
 	std::vector<DebugLine> Lines;
 };
 
-class Platform;
 class Renderer
 {
 public:

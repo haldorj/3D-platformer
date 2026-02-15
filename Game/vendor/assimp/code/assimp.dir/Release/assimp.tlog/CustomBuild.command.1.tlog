@@ -1,0 +1,10 @@
+^D:\DEV\ABYSS\GAME\VENDOR\ASSIMP\CODE\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SD:/Dev/Abyss/Game/vendor/assimp -BD:/Dev/Abyss/Game/vendor/assimp --check-stamp-file D:/Dev/Abyss/Game/vendor/assimp/code/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
