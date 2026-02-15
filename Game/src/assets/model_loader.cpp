@@ -76,6 +76,7 @@ static std::string GetBasePath(const std::string& path)
     return (pos == std::string::npos) ? "" : path.substr(0, pos + 1);
 }
 
+/*
 Model ModelLoader::LoadGLTFModel(const std::string& filename)
 {
     std::println("Attempting to load model from file: {}", filename);
@@ -275,7 +276,7 @@ Model ModelLoader::LoadGLTFModel(const std::string& filename)
     std::println("Success: Loaded model with {} mesh(es)", result.Meshes.size());
     return result;
 }
-
+*/
 Mesh ModelLoader::LoadMesh(const cgltf_data* data, const cgltf_mesh* gltfMesh, const std::string&)
 {
     Mesh result;

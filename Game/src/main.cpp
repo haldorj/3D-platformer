@@ -532,15 +532,6 @@ void UpdateGame(const float dt, GameMemory* gameState)
         // Matrix multiplications happen right to left <--
 		entity.WorldMatrix = scale * translation * rotation;
 
-        V3 color = { 1.f,1.f,1.f };
-        for (const auto& skeleton : entity.Model.Skeletons)
-        {
-            for (int j = 1; j < skeleton.Joints.size(); ++j)
-            {
-
-            }
-        }
-
         //AnimationSystem::UpdateAnimator(entity.Model.Animator, dt);
         ////std::println("");
     }

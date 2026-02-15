@@ -28,62 +28,51 @@ struct DebugVertex
     V3 Color{};
 };
 
-struct Joint
-{
-    // Inverted model-space bind transform (bone to model origin).
-    M4 InverseBindTransform{};
-    M4 GlobalTransform{};
-    M4 LocalTransform{};
-
-    std::string Name{};
-    int32_t ID{};
-    int32_t Parent{};
-};
-
-struct Skeleton 
-{
-    std::unordered_map<int, int> JointIDToArrayIndex;
-    std::vector<Joint> Joints;
-};
-
-struct KeyframeV3 
-{
-    float Time;
-    V3 Value;
-};
-
-struct KeyframeQuat 
-{
-    float Time;
-    Quat Value;
-};
-
-struct JointAnimation 
-{
-    std::vector<KeyframeV3> Translations;
-    std::vector<KeyframeQuat> Rotations;
-    std::vector<KeyframeV3> Scales;
-    std::string TargetNode;
-};
-
-struct Animation
-{
-    std::string Name;
-    std::unordered_map<int, JointAnimation> PerJointAnimationPoses;
-    float Duration;
-};
-
-struct Animator
-{
-    std::array<M4, 100> FinalBoneTransforms{};
-
-    Skeleton* TargetSkeleton{};
-    Animation* CurrentAnimation{};
-
-    float CurrentTime{};
-    float PlaybackSpeed{1.0f};
-    bool Looping{true};
-};
+//struct Joint
+//{
+//    // Inverted model-space bind transform (bone to model origin).
+//    M4 InverseBindTransform{};
+//    M4 GlobalTransform{};
+//    M4 LocalTransform{};
+//
+//    std::string Name{};
+//    int32_t ID{};
+//    int32_t Parent{};
+//};
+//
+//struct Skeleton 
+//{
+//    std::unordered_map<int, int> JointIDToArrayIndex;
+//    std::vector<Joint> Joints;
+//};
+//
+//struct KeyframeV3 
+//{
+//    float Time;
+//    V3 Value;
+//};
+//
+//struct KeyframeQuat 
+//{
+//    float Time;
+//    Quat Value;
+//};
+//
+//struct JointAnimation 
+//{
+//    std::vector<KeyframeV3> Translations;
+//    std::vector<KeyframeQuat> Rotations;
+//    std::vector<KeyframeV3> Scales;
+//    std::string TargetNode;
+//};
+//
+//struct Animation
+//{
+//    std::string Name;
+//    std::unordered_map<int, JointAnimation> PerJointAnimationPoses;
+//    float Duration;
+//};
+//
 
 struct Texture
 {
@@ -103,10 +92,81 @@ struct Mesh
     void* IndexBuffer{};
 };
 
+struct BoneInfo
+{
+    /*id is index in finalBoneMatrices*/
+    int id;
+
+    /*offset matrix transforms vertex from model space to bone space*/
+    M4 offset;
+
+};
+
+struct KeyPosition
+{
+    V3 position;
+    float timeStamp;
+};
+
+struct KeyRotation
+{
+    Quat orientation;
+    float timeStamp;
+};
+
+struct KeyScale
+{
+    V3 scale;
+    float timeStamp;
+};
+
+struct Bone
+{
+    std::vector<KeyPosition> m_Positions;
+    std::vector<KeyRotation> m_Rotations;
+    std::vector<KeyScale> m_Scales;
+    int m_NumPositions;
+    int m_NumRotations;
+    int m_NumScalings;
+
+    M4 m_LocalTransform;
+    std::string m_Name;
+    int m_ID;
+};
+
+struct AssimpNodeData
+{
+    M4 transformation;
+    std::string name;
+    int childrenCount;
+    std::vector<AssimpNodeData> children;
+};
+
+struct Animation
+{
+    float m_Duration;
+    int m_TicksPerSecond;
+    std::vector<Bone> m_Bones;
+    AssimpNodeData m_RootNode;
+    std::map<std::string, BoneInfo> m_BoneInfoMap;
+};
+
+struct Animator
+{
+    std::array<M4, 100> FinalBoneTransforms{};
+    Animation* CurrentAnimation{};
+    float CurrentTime{};
+    float DeltaTime{};
+};
+
 struct Model
 {
+    std::unordered_map<std::string, BoneInfo> BoneInfoMap;
+    int BoneCounter;
+    
     std::vector<Mesh> Meshes{};
-    std::vector<Skeleton> Skeletons{};
     std::vector<Animation> Animations{};
-    Animator Animator{};
+    //std::vector<Skeleton> Skeletons{};
+    //std::vector<Animation> Animations{};
+    //Animator Animator{};
 };

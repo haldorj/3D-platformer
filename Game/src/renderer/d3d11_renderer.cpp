@@ -539,7 +539,7 @@ void D3D11Renderer::RenderScene(GameMemory* gameState)
             CbPerObj.View = gameState->MainCamera.View;
             CbPerObj.World = entity.WorldMatrix;
 
-            CbPerObj.FinalBoneTransforms = entity.Model.Animator.FinalBoneTransforms;
+            //CbPerObj.FinalBoneTransforms = entity.Model.Animator.FinalBoneTransforms;
 
             D3d11DeviceContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
             D3d11DeviceContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
