@@ -148,7 +148,7 @@ struct Animation
     int m_TicksPerSecond;
     std::vector<Bone> m_Bones;
     AssimpNodeData m_RootNode;
-    std::map<std::string, BoneInfo> m_BoneInfoMap;
+    std::unordered_map<std::string, BoneInfo> m_BoneInfoMap;
 };
 
 struct Animator
@@ -164,6 +164,7 @@ struct Model
     std::unordered_map<std::string, BoneInfo> BoneInfoMap;
     int BoneCounter;
     
+    Animator mAnimator{};
     std::vector<Mesh> Meshes{};
     std::vector<Animation> Animations{};
     //std::vector<Skeleton> Skeletons{};

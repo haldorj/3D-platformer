@@ -1,12 +1,10 @@
 #pragma once
-#include <assimp/scene.h>
-#include <assets/assets.h>
 
 class AssetImporter
 {
 public:
     static void LoadModel(std::string path, Model& model);
-    static void LoadAnimation(const std::string& animationPath, Model& model);
+    static void LoadAnimations(const std::string& animationPath, Model& model);
 
 private:
     static void ProcessNode(aiNode* node, const aiScene* scene, Model& model);

@@ -1,7 +1,5 @@
 #include "pch.h"
 #include "asset_importer.h"
-#include <assimp/Importer.hpp>
-#include <assimp/postprocess.h>
 
 void AssetImporter::LoadModel(std::string path, Model& model)
 {
@@ -18,7 +16,7 @@ void AssetImporter::LoadModel(std::string path, Model& model)
     ProcessNode(scene->mRootNode, scene, model);
 }
 
-void AssetImporter::LoadAnimation(const std::string& animationPath, Model& model)
+void AssetImporter::LoadAnimations(const std::string& animationPath, Model& model)
 {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(animationPath, aiProcess_Triangulate);
@@ -26,13 +24,18 @@ void AssetImporter::LoadAnimation(const std::string& animationPath, Model& model
 
     for (unsigned int i = 0; i < scene->mNumAnimations; ++i)
     {
-        auto sceneAnimation = scene->mAnimations[0];
+        auto sceneAnimation = scene->mAnimations[i];
 
         Animation animation{};
         animation.m_Duration = static_cast<float>(sceneAnimation->mDuration);
-        animation.m_TicksPerSecond = static_cast<int>(sceneAnimation->mTicksPerSecond);
+        animation.m_TicksPerSecond =
+            sceneAnimation->mTicksPerSecond != 0.0 ?
+            static_cast<int>(sceneAnimation->mTicksPerSecond) : 25;
+
         ReadHeirarchyData(animation.m_RootNode, scene->mRootNode);
         ReadMissingBones(sceneAnimation, model, animation);
+
+        model.Animations.push_back(animation);
     }
 }
 
@@ -59,9 +62,11 @@ void AssetImporter::ReadMissingBones(const aiAnimation* animation, Model& model,
 
         bone = LoadBone(channel->mNodeName.data,
             boneInfoMap[channel->mNodeName.data].id, channel);
+
+        anim.m_Bones.push_back(bone);
     }
 
-    model.BoneInfoMap = boneInfoMap;
+    anim.m_BoneInfoMap = boneInfoMap;
 }
 
 void AssetImporter::ReadHeirarchyData(AssimpNodeData& dest, const aiNode* src)
@@ -104,6 +109,10 @@ void AssetImporter::ProcessMesh(aiMesh* mesh, const aiScene* scene, Model& model
     for (unsigned int i = 0; i < mesh->mNumVertices; i++)
     {
         Vertex vertex;
+
+        vertex.BoneIDs = { -1, -1, -1, -1 };
+        vertex.Weights = { 0.f, 0.f, 0.f, 0.f };
+       
         // process vertex positions, normals and texture coordinates
         V3 vector3{};
         vector3.X = mesh->mVertices[i].x;
@@ -186,27 +195,37 @@ std::vector<Texture> AssetImporter::LoadMaterialTextures(aiMaterial* mat, aiText
 
 static void SetVertexBoneData(Vertex& vertex, int boneID, float weight)
 {
-    //for (int i = 0; i < MAX_BONE_INFLUENCE; ++i)
-    //{
-    //    if (vertex.BoneIDs[i] < 0)
-    //    {
-    //        vertex.Weights[i] = weight;
-    //        vertex.m_BoneIDs[i] = boneID;
-    //        break;
-    //    }
-    //}
-    vertex.Weights = { weight ,weight ,weight, weight };
-    vertex.BoneIDs = { boneID ,boneID ,boneID, boneID };
+    if (vertex.BoneIDs.X < 0) {
+        vertex.BoneIDs.X = boneID;
+        vertex.Weights.X = weight;
+        return;
+    }
+    if (vertex.BoneIDs.Y < 0) {
+        vertex.BoneIDs.Y = boneID;
+        vertex.Weights.Y = weight;
+        return;
+    }
+    if (vertex.BoneIDs.Z < 0) {
+        vertex.BoneIDs.Z = boneID;
+        vertex.Weights.Z = weight;
+        return;
+    }
+    if (vertex.BoneIDs.W < 0) {
+        vertex.BoneIDs.W = boneID;
+        vertex.Weights.W = weight;
+        return;
+    }
 }
+
 
 M4 AssetImporter::TransposeAndConvertMatrix(const aiMatrix4x4& from)
 {
     M4 to;
     //the a,b,c,d in assimp is the row ; the 1,2,3,4 is the column
-    to.M[0][0] = from.a1; to.M[1][0] = from.a2; to.M[2][0] = from.a3; to.M[3][0] = from.a4;
-    to.M[0][1] = from.b1; to.M[1][1] = from.b2; to.M[2][1] = from.b3; to.M[3][1] = from.b4;
-    to.M[0][2] = from.c1; to.M[1][2] = from.c2; to.M[2][2] = from.c3; to.M[3][2] = from.c4;
-    to.M[0][3] = from.d1; to.M[1][3] = from.d2; to.M[2][3] = from.d3; to.M[3][3] = from.d4;
+    to.M[0][0] = from.a1; to.M[0][1] = from.a2; to.M[0][2] = from.a3; to.M[0][3] = from.a4;
+    to.M[1][0] = from.b1; to.M[1][1] = from.b2; to.M[1][2] = from.b3; to.M[1][3] = from.b4;
+    to.M[2][0] = from.c1; to.M[2][1] = from.c2; to.M[2][2] = from.c3; to.M[2][3] = from.c4;
+    to.M[3][0] = from.d1; to.M[3][1] = from.d2; to.M[3][2] = from.d3; to.M[3][3] = from.d4;
     return to;
 }
 
@@ -214,6 +233,8 @@ Bone AssetImporter::LoadBone(const std::string& name, int ID, const aiNodeAnim* 
 {
     Bone bone{};
 
+    bone.m_Name = name;
+    bone.m_ID = ID;
     bone.m_NumPositions = channel->mNumPositionKeys;
 
     for (int positionIndex = 0; positionIndex < bone.m_NumPositions; ++positionIndex)

@@ -9,6 +9,7 @@
 #include <platform/win32_platform.h>
 #include <renderer/d3d11_renderer.h>
 #endif
+#include <assets/animator.h>
 
 void Init();
 void Run();
@@ -211,6 +212,7 @@ void UploadMeshesToGPU(GameMemory* gameState)
     Model model{};
     //model = ModelLoader::LoadGLTFModel("assets/models/dummy_platformer.gltf");
     AssetImporter::LoadModel("assets/models/dummy_platformer.gltf", model);
+    AssetImporter::LoadAnimations("assets/models/dummy_platformer.gltf", model);
     for (auto& mesh : model.Meshes)
     {
         _Renderer->UploadMeshesToGPU(mesh);
@@ -219,8 +221,8 @@ void UploadMeshesToGPU(GameMemory* gameState)
     Entity& entity = gameState->World.Entities[0];
 	entity.Model = model;
 
-    //AnimationSystem::PlayAnimation(entity.Model.Animator,
-    //    &entity.Model.Animations[3], &entity.Model.Skeletons[0], 1.0f, true);
+    AnimationSystem::PlayAnimation(entity.Model.mAnimator,
+        &entity.Model.Animations[3]);
 
     gameState->World.Entities[1] = LoadTerrain("assets/textures/terrain.png", {0.f, -21.f, 0.f});
     for (auto& mesh : gameState->World.Entities[1].Model.Meshes)
@@ -532,8 +534,8 @@ void UpdateGame(const float dt, GameMemory* gameState)
         // Matrix multiplications happen right to left <--
 		entity.WorldMatrix = scale * translation * rotation;
 
-        //AnimationSystem::UpdateAnimator(entity.Model.Animator, dt);
-        ////std::println("");
+        AnimationSystem::UpdateAnimator(entity.Model.mAnimator, dt);
+        //std::println("");
     }
 }
 

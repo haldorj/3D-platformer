@@ -149,7 +149,7 @@
 //    }
 //}
 
-void AnimationSystem::UpdateAnimation(Animator& animator, float dt)
+void AnimationSystem::UpdateAnimator(Animator& animator, float dt)
 {
     animator.DeltaTime = dt;
     if (animator.CurrentAnimation)
@@ -168,14 +168,14 @@ void AnimationSystem::PlayAnimation(Animator& animator, Animation* pAnimation)
 
 Bone* AnimationSystem::FindBone(Animation* animation, const std::string& name)
 {
-    auto iter = std::find_if(animation->m_Bones.begin(), animation->m_Bones.end(),
-        [&](const Bone& Bone)
-        {
-            return Bone.m_Name == name;
-        }
-    );
-    if (iter == animation->m_Bones.end()) return nullptr;
-    else return &(*iter);
+    for (int i = 0; i < animation->m_Bones.size(); ++i)
+    {
+        if (animation->m_Bones[i].m_Name != name)
+            continue;
+
+        return &animation->m_Bones[i];
+    }
+    return nullptr;
 }
 
 void AnimationSystem::CalculateBoneTransform(Animator& animator, const AssimpNodeData* node, M4 parentTransform)
@@ -198,7 +198,7 @@ void AnimationSystem::CalculateBoneTransform(Animator& animator, const AssimpNod
 
     M4 globalTransformation = parentTransform * nodeTransform;
 
-    auto boneInfoMap = animator.CurrentAnimation->m_BoneInfoMap;
+    auto& boneInfoMap = animator.CurrentAnimation->m_BoneInfoMap;
     if (boneInfoMap.find(nodeName) != boneInfoMap.end())
     {
         int index = boneInfoMap[nodeName].id;

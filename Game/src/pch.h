@@ -45,6 +45,11 @@
 #include <stb_image.h>
 #include <cgltf.h>
 
+#include <assimp/scene.h>
+#include <assets/assets.h>
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+
 //////////////////////////////////////////
 // Platform includes					//
 //////////////////////////////////////////

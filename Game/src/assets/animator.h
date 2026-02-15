@@ -20,11 +20,12 @@ public:
 //	static void UpdateAnimation(Animator& animator);
 	static void UpdateBoneLocalTransform(struct Bone& bone, float animationTime);
 
+	static void PlayAnimation(Animator& animator, Animation* pAnimation);
+	static void UpdateAnimator(Animator& animator, float dt);
+
 private:
-	void UpdateAnimation(Animator& animator, float dt);
-	void PlayAnimation(Animator& animator, Animation* pAnimation);
-	Bone* FindBone(Animation* animation, const std::string& name);
-	void CalculateBoneTransform(Animator& animator, const AssimpNodeData* node, M4 parentTransform);
+	static Bone* FindBone(Animation* animation, const std::string& name);
+	static void CalculateBoneTransform(Animator& animator, const AssimpNodeData* node, M4 parentTransform);
 	static M4 InterpolatePosition(Bone& bone, float animationTime);
 	static M4 InterpolateRotation(Bone& bone, float animationTime);
 	static M4 InterpolateScaling(Bone& bone, float animationTime);
