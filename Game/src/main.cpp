@@ -136,9 +136,9 @@ void Run()
 
             const std::string cameraPosStr = 
                 std::format("CameraPos: {:.2f} {:.2f} {:.2f}", 
-                    _GameMemory.get()->MainCamera.Position.X,
-                    _GameMemory.get()->MainCamera.Position.Y,
-                    _GameMemory.get()->MainCamera.Position.Z );
+                    _GameMemory.get()->MainCamera.Position.x,
+                    _GameMemory.get()->MainCamera.Position.y,
+                    _GameMemory.get()->MainCamera.Position.z );
 
             textScale = 0.6f;
 
@@ -174,7 +174,7 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameMemory* gam
     gameState->MainCamera.Direction = direction;
     gameState->MainCamera.Up = { 0.0f, 1.0f, 0.0f };
 
-    gameState->MainCamera.Pitch = asinf(direction.Y);
+    gameState->MainCamera.Pitch = asinf(direction.y);
     gameState->MainCamera.Yaw = 90.0f;
 
     //Set the View matrix
@@ -191,9 +191,9 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameMemory* gam
 
     _LoadedFontGlyphs = LoadFontGlyphs("C:/Windows/Fonts/Calibri.ttf", _Renderer.get());
 
-    gameState->World.DirectionalLight.Direction = { .X = -0.25f, .Y = -0.5f, .Z = -1.0f };
-    gameState->World.DirectionalLight.Ambient = { .X = 0.15f, .Y = 0.15f, .Z = 0.15f };
-    gameState->World.DirectionalLight.Diffuse = { .X = 0.8f, .Y = 0.8f, .Z = 0.8f };
+    gameState->World.DirectionalLight.Direction = { .x = -0.25f, .y = -0.5f, .z = -1.0f };
+    gameState->World.DirectionalLight.Ambient = { .x = 0.15f, .y = 0.15f, .z = 0.15f };
+    gameState->World.DirectionalLight.Diffuse = { .x = 0.8f, .y = 0.8f, .z = 0.8f };
 
     UploadMeshesToGPU(_GameMemory.get());
 
@@ -263,11 +263,11 @@ void Move(float dt, GameMemory* gameState)
         }
         if (_Platform->IsKeyDown(KeyCode::KEY_SPACE))
         {
-            gameState->MainCamera.Position.Y += moveSpeed;
+            gameState->MainCamera.Position.y += moveSpeed;
         }
         if (_Platform->IsKeyDown(KeyCode::KEY_LEFT_CTRL))
         {
-            gameState->MainCamera.Position.Y -= moveSpeed;
+            gameState->MainCamera.Position.y -= moveSpeed;
         }
     }
 
@@ -318,8 +318,8 @@ void UpdateCamera(const float dt, GameMemory* gameState)
 	Camera& c = gameState->MainCamera;
 
     // Adjust yaw/pitch
-    c.Yaw -= delta.X * _MouseSensitivity;
-    c.Pitch -= delta.Y * _MouseSensitivity;
+    c.Yaw -= delta.x * _MouseSensitivity;
+    c.Pitch -= delta.y * _MouseSensitivity;
 
     // Clamp pitch
     if (c.Pitch > 89.0f)
@@ -334,11 +334,11 @@ void UpdateCamera(const float dt, GameMemory* gameState)
     // Convert to direction vector
     V3 direction{};
 
-    direction.X = 
+    direction.x = 
         cosf(DegreesToRadians(c.Yaw)) * cosf(DegreesToRadians(c.Pitch));
-    direction.Y = 
+    direction.y = 
         sinf(DegreesToRadians(c.Pitch));
-    direction.Z = 
+    direction.z = 
         sinf(DegreesToRadians(c.Yaw)) * cosf(DegreesToRadians(c.Pitch));
 
     direction = Normalize(direction);
@@ -354,19 +354,19 @@ void UpdateCamera(const float dt, GameMemory* gameState)
 
 void InitDebugPrimitives()
 {
-    _DebugPrimitives.Lines.reserve(128);
+    _DebugPrimitives.lines.reserve(128);
 }
 
 void DrawDebugLine3D(const V3& start, const V3& end, const V3& color)
 {
     if (!_DebugMode) return;
-    _DebugPrimitives.Lines.push_back({ start, end, color });
+    _DebugPrimitives.lines.push_back({ start, end, color });
 }
 
 void ClearDebugPrimitives()
 {
     if (!_DebugMode) return;
-    _DebugPrimitives.Lines.clear();
+    _DebugPrimitives.lines.clear();
 }
 
 Entity LoadTerrain(const std::string& path, const V3& offset)
@@ -401,12 +401,12 @@ Entity LoadTerrain(const std::string& path, const V3& offset)
             float heightValue = static_cast<float>(pixel[0]) * yScale - yShift;
 
             Vertex v{};
-            v.Position.X = (-wSteps / 2.0f + (x / (float)rez)) + offset.X;
-            v.Position.Y = heightValue + offset.Y;
-            v.Position.Z = (-hSteps / 2.0f + (z / (float)rez)) + offset.Z;
+            v.Position.x = (-wSteps / 2.0f + (x / (float)rez)) + offset.x;
+            v.Position.y = heightValue + offset.y;
+            v.Position.z = (-hSteps / 2.0f + (z / (float)rez)) + offset.z;
 
-            v.TexCoord.X = static_cast<float>(x) / (width - 1);
-            v.TexCoord.Y = static_cast<float>(z) / (height - 1);
+            v.TexCoord.x = static_cast<float>(x) / (width - 1);
+            v.TexCoord.y = static_cast<float>(z) / (height - 1);
 
             vertices.emplace_back(v);
         }
@@ -514,10 +514,10 @@ void UpdateGame(const float dt, GameMemory* gameState)
     //if (angle > 6.28f)
     //    angle = 0.0f;
 
-    V3 lightDir = Normalize({ 0.5f, 1.0f, 0.5f });
+    const V3 lightDir = Normalize({ 0.5f, 1.0f, 0.5f });
     gameState->World.DirectionalLight.Ambient = { 0.4f, 0.4f, 0.4f };
     gameState->World.DirectionalLight.Color = { 1.0f, 1.0f, 1.0f };
-    gameState->World.DirectionalLight.Direction = { lightDir.X, lightDir.Y, lightDir.Z, 0.0f };
+    gameState->World.DirectionalLight.Direction = { lightDir.x, lightDir.y, lightDir.z, 0.0f };
 
     for (int i = 0; i < MAX_ENTITIES; i++)
     {
@@ -593,8 +593,8 @@ std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path, Rend
 
         FontGlyph glyph{};
         glyph.TextureView = renderer->CreateTextureView(fontTexture);
-        glyph.Size = { .X = static_cast<float>(width), .Y = static_cast<float>(-height) };
-        glyph.Bearing = { .X = static_cast<float>(xOffset), .Y = static_cast<float>(yOffset + pixelHeight) };
+        glyph.Size = { .x = static_cast<float>(width), .y = static_cast<float>(-height) };
+        glyph.Bearing = { .x = static_cast<float>(xOffset), .y = static_cast<float>(yOffset + pixelHeight) };
         glyph.Advance = scale * static_cast<float>(advance);
 
         result.emplace(codepoint, glyph);

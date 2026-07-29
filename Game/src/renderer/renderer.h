@@ -18,7 +18,7 @@ struct DebugLine
 
 struct DebugPrimitives
 {
-	std::vector<DebugLine> Lines;
+	std::vector<DebugLine> lines;
 };
 
 class Renderer

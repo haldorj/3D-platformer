@@ -115,21 +115,21 @@ void AssetImporter::ProcessMesh(aiMesh* mesh, const aiScene* scene, Model& model
        
         // process vertex positions, normals and texture coordinates
         V3 vector3{};
-        vector3.X = mesh->mVertices[i].x;
-        vector3.Y = mesh->mVertices[i].y;
-        vector3.Z = mesh->mVertices[i].z;
+        vector3.x = mesh->mVertices[i].x;
+        vector3.y = mesh->mVertices[i].y;
+        vector3.z = mesh->mVertices[i].z;
         vertex.Position = vector3;
 
-        vector3.X = mesh->mNormals[i].x;
-        vector3.Y = mesh->mNormals[i].y;
-        vector3.Z = mesh->mNormals[i].z;
+        vector3.x = mesh->mNormals[i].x;
+        vector3.y = mesh->mNormals[i].y;
+        vector3.z = mesh->mNormals[i].z;
         vertex.Normal = vector3;
 
         V2 vector2{};
         if (mesh->mTextureCoords[0]) // does the mesh contain texture coordinates?
         {
-            vector2.X = mesh->mTextureCoords[0][i].x;
-            vector2.Y = mesh->mTextureCoords[0][i].y;
+            vector2.x = mesh->mTextureCoords[0][i].x;
+            vector2.y = mesh->mTextureCoords[0][i].y;
             vertex.TexCoord = vector2;
         }
 
@@ -195,24 +195,24 @@ std::vector<Texture> AssetImporter::LoadMaterialTextures(aiMaterial* mat, aiText
 
 static void SetVertexBoneData(Vertex& vertex, int boneID, float weight)
 {
-    if (vertex.BoneIDs.X < 0) {
-        vertex.BoneIDs.X = boneID;
-        vertex.Weights.X = weight;
+    if (vertex.BoneIDs.x < 0) {
+        vertex.BoneIDs.x = boneID;
+        vertex.Weights.x = weight;
         return;
     }
-    if (vertex.BoneIDs.Y < 0) {
-        vertex.BoneIDs.Y = boneID;
-        vertex.Weights.Y = weight;
+    if (vertex.BoneIDs.y < 0) {
+        vertex.BoneIDs.y = boneID;
+        vertex.Weights.y = weight;
         return;
     }
-    if (vertex.BoneIDs.Z < 0) {
-        vertex.BoneIDs.Z = boneID;
-        vertex.Weights.Z = weight;
+    if (vertex.BoneIDs.z < 0) {
+        vertex.BoneIDs.z = boneID;
+        vertex.Weights.z = weight;
         return;
     }
-    if (vertex.BoneIDs.W < 0) {
-        vertex.BoneIDs.W = boneID;
-        vertex.Weights.W = weight;
+    if (vertex.BoneIDs.w < 0) {
+        vertex.BoneIDs.w = boneID;
+        vertex.Weights.w = weight;
         return;
     }
 }
@@ -222,10 +222,10 @@ M4 AssetImporter::TransposeAndConvertMatrix(const aiMatrix4x4& from)
 {
     M4 to;
     //the a,b,c,d in assimp is the row ; the 1,2,3,4 is the column
-    to.M[0][0] = from.a1; to.M[0][1] = from.a2; to.M[0][2] = from.a3; to.M[0][3] = from.a4;
-    to.M[1][0] = from.b1; to.M[1][1] = from.b2; to.M[1][2] = from.b3; to.M[1][3] = from.b4;
-    to.M[2][0] = from.c1; to.M[2][1] = from.c2; to.M[2][2] = from.c3; to.M[2][3] = from.c4;
-    to.M[3][0] = from.d1; to.M[3][1] = from.d2; to.M[3][2] = from.d3; to.M[3][3] = from.d4;
+    to.m[0][0] = from.a1; to.m[0][1] = from.a2; to.m[0][2] = from.a3; to.m[0][3] = from.a4;
+    to.m[1][0] = from.b1; to.m[1][1] = from.b2; to.m[1][2] = from.b3; to.m[1][3] = from.b4;
+    to.m[2][0] = from.c1; to.m[2][1] = from.c2; to.m[2][2] = from.c3; to.m[2][3] = from.c4;
+    to.m[3][0] = from.d1; to.m[3][1] = from.d2; to.m[3][2] = from.d3; to.m[3][3] = from.d4;
     return to;
 }
 
@@ -243,9 +243,9 @@ Bone AssetImporter::LoadBone(const std::string& name, int ID, const aiNodeAnim* 
         float timeStamp = 
             static_cast<float>(channel->mPositionKeys[positionIndex].mTime);
         KeyPosition data{};
-        data.position.X = aiPosition.x;
-        data.position.Y = aiPosition.y;
-        data.position.Z = aiPosition.z;
+        data.position.x = aiPosition.x;
+        data.position.y = aiPosition.y;
+        data.position.z = aiPosition.z;
         data.timeStamp = timeStamp;
         bone.m_Positions.push_back(data);
     }
@@ -257,10 +257,10 @@ Bone AssetImporter::LoadBone(const std::string& name, int ID, const aiNodeAnim* 
         float timeStamp = 
             static_cast<float>(channel->mRotationKeys[rotationIndex].mTime);
         KeyRotation data{};
-        data.orientation.X = aiOrientation.x;
-        data.orientation.Y = aiOrientation.y;
-        data.orientation.Z = aiOrientation.z;
-        data.orientation.W = aiOrientation.w;
+        data.orientation.x = aiOrientation.x;
+        data.orientation.y = aiOrientation.y;
+        data.orientation.z = aiOrientation.z;
+        data.orientation.w = aiOrientation.w;
         data.timeStamp = timeStamp;
         bone.m_Rotations.push_back(data);
     }
@@ -272,9 +272,9 @@ Bone AssetImporter::LoadBone(const std::string& name, int ID, const aiNodeAnim* 
         float timeStamp = 
             static_cast<float>(channel->mScalingKeys[keyIndex].mTime);
         KeyScale data{};
-        data.scale.X = aiScale.x;
-        data.scale.Y = aiScale.y;
-        data.scale.Z = aiScale.z;
+        data.scale.x = aiScale.x;
+        data.scale.y = aiScale.y;
+        data.scale.z = aiScale.z;
         data.timeStamp = timeStamp;
         bone.m_Scales.push_back(data);
     }

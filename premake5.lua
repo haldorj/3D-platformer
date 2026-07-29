@@ -16,6 +16,7 @@ IncludeDir["stb"] = "game/vendor/stb"
 IncludeDir["json"] = "game/vendor/json"
 IncludeDir["cgltf"] = "game/vendor/cgltf"
 IncludeDir["assimp"] = "game/vendor/assimp"
+IncludeDir["vulkan"] = "$(VULKAN_SDK)"
 
 project "game"
 	location "game"
@@ -27,7 +28,8 @@ project "game"
 	warnings "Extra"
 	-- 4100: unused funtion parameter
 	disablewarnings {"4100"}
-	flags { 
+	flags 
+	{ 
 		"FatalWarnings", 
 		"MultiProcessorCompile" 
 	}
@@ -56,18 +58,27 @@ project "game"
 		"%{IncludeDir.json}",
 		"%{IncludeDir.cgltf}",
 		"%{IncludeDir.assimp}/include",
+		"%{IncludeDir.vulkan}/include",
 	}
 
 	libdirs
 	{
 		"%{IncludeDir.assimp}/lib/Release",
+		"%{IncludeDir.vulkan}/lib",
+	}
+
+	links 
+	{ 
+		"assimp-vc143-mt.lib",
+		"vulkan-1.lib",
+		"volk.lib",
+		"SDL3.lib",
 	}
 
 	filter "system:windows"
 		systemversion "latest"
 		links 
 		{ 
-			"assimp-vc143-mt.lib",
 			"d3d11.lib", 
 			"dxgi.lib", 
 			"d3dcompiler.lib",

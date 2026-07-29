@@ -71,8 +71,8 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
 		// Handle mouse input
         case WM_MOUSEMOVE:
         {
-            _Input.MousePosition.X = static_cast<float>(GET_X_LPARAM(lParam));
-            _Input.MousePosition.Y = static_cast<float>(GET_Y_LPARAM(lParam));
+            _Input.MousePosition.x = static_cast<float>(GET_X_LPARAM(lParam));
+            _Input.MousePosition.y = static_cast<float>(GET_Y_LPARAM(lParam));
 
             break;
         }
@@ -139,8 +139,8 @@ static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM l
                     LONG dx = raw->data.mouse.lLastX;
                     LONG dy = raw->data.mouse.lLastY;
 
-					_Input.MouseDelta.X += static_cast<float>(dx);
-					_Input.MouseDelta.Y += static_cast<float>(dy);
+					_Input.MouseDelta.x += static_cast<float>(dx);
+					_Input.MouseDelta.y += static_cast<float>(dy);
                 }
             }
             break;
@@ -370,8 +370,8 @@ bool Win32Platform::IsKeyReleased(KeyCode key)
 V2 Win32Platform::GetMousePosition()
 {
 	return V2{ 
-        static_cast<float>(_Input.MousePosition.X), 
-        static_cast<float>(_Input.MousePosition.Y) };
+        static_cast<float>(_Input.MousePosition.x), 
+        static_cast<float>(_Input.MousePosition.y) };
 }
 
 V2 Win32Platform::GetMouseDelta()

@@ -554,14 +554,14 @@ void D3D11Renderer::RenderScene(GameMemory* gameState)
 
 void D3D11Renderer::RenderDebugPrimitives(GameMemory* gameMemory, DebugPrimitives& primitives)
 {
-    if (primitives.Lines.empty())
+    if (primitives.lines.empty())
         return;
 
 
     // Build vertex list
     std::vector<DebugVertex> vertices;
-    vertices.reserve(primitives.Lines.size() * 2);
-    for (const auto& line : primitives.Lines)
+    vertices.reserve(primitives.lines.size() * 2);
+    for (const auto& line : primitives.lines)
     {
         DebugVertex v0{ line.Start, line.Color };
         DebugVertex v1{ line.End,   line.Color };
@@ -628,11 +628,11 @@ void D3D11Renderer::RenderText(std::unordered_map<char, FontGlyph>& glyphs,
         };
         FontGlyph& glyph = it->second;
 
-        const float xPos = x + glyph.Bearing.X * scale;
-        const float yPos = y - (glyph.Size.Y - glyph.Bearing.Y) * scale;
+        const float xPos = x + glyph.Bearing.x * scale;
+        const float yPos = y - (glyph.Size.y - glyph.Bearing.y) * scale;
 
         
-        const M4 scaling = MatrixScaling({ glyph.Size.X * scale, glyph.Size.Y * scale, 1.0f }); // scale unit quad to pixel size
+        const M4 scaling = MatrixScaling({ glyph.Size.x * scale, glyph.Size.y * scale, 1.0f }); // scale unit quad to pixel size
         const M4 translation = MatrixTranslation({ xPos, yPos, 0.0f });
         const M4 model = scaling * translation;
 
@@ -641,7 +641,7 @@ void D3D11Renderer::RenderText(std::unordered_map<char, FontGlyph>& glyphs,
         CbPerObj.View = MatrixIdentity();
         CbPerObj.World = model;
 
-        CbPerObj.Color = { color.X, color.Y, color.Z, 1.0f };
+        CbPerObj.Color = { color.x, color.y, color.z, 1.0f };
 
         D3d11DeviceContext->UpdateSubresource(CbPerObjectBuffer, 0, nullptr, &CbPerObj, 0, 0);
         D3d11DeviceContext->VSSetConstantBuffers(0, 1, &CbPerObjectBuffer);
