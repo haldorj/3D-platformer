@@ -201,7 +201,7 @@ void Win32Platform::InitWindow(int windowWidth, int windowHeight, const wchar_t*
         NULL        // Additional application data
     );
 
-    Assert(_Hwnd);
+    assert(_Hwnd);
 
     ShowWindow(_Hwnd, nCmdShow);
 }
@@ -259,7 +259,7 @@ void Win32Platform::InitInput()
     rid.usUsage = 0x02;
     rid.dwFlags = 0; /*RIDEV_NOLEGACY;*/
     rid.hwndTarget = _Hwnd;
-    Assert(RegisterRawInputDevices(&rid, 1, sizeof(rid)));
+    assert(RegisterRawInputDevices(&rid, 1, sizeof(rid)));
     SetProcessDPIAware();
 
     _KeyMap[KeyCode::MOUSE_BUTTON_LEFT] = VK_LBUTTON;
@@ -351,19 +351,19 @@ void Win32Platform::UpdateInput()
 
 bool Win32Platform::IsKeyDown(KeyCode key)
 {
-    Assert(static_cast<size_t>(key) < _Input.KeyStates.KeysDown.size());
+    assert(static_cast<size_t>(key) < _Input.KeyStates.KeysDown.size());
 	return _Input.KeyStates.KeysDown[_KeyMap[key]];
 }
 
 bool Win32Platform::IsKeyPressed(KeyCode key)
 {
-    Assert(static_cast<size_t>(key) < _Input.KeyStates.KeysDown.size());
+    assert(static_cast<size_t>(key) < _Input.KeyStates.KeysDown.size());
 	return _Input.KeyStates.KeysPressed[_KeyMap[key]];
 }
 
 bool Win32Platform::IsKeyReleased(KeyCode key)
 {
-    Assert(static_cast<size_t>(key) < _Input.KeyStates.KeysDown.size());
+    assert(static_cast<size_t>(key) < _Input.KeyStates.KeysDown.size());
 	return _Input.KeyStates.KeysReleased[_KeyMap[key]];
 }
 
@@ -409,7 +409,7 @@ void Win32Platform::InitAudio()
     // https://www.rovecoder.net/article/xaudio2/initializing-
 
     // Initialize the COM library.
-    Assert(CoInitializeEx(nullptr, COINIT_MULTITHREADED) == S_OK);
+    assert(CoInitializeEx(nullptr, COINIT_MULTITHREADED) == S_OK);
 
     // The audio engine by default will use the default processor, 
     // this can be changed in the 3rd parameter of XAudio2Create 

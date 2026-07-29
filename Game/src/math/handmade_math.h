@@ -2,8 +2,6 @@
 
 #include <cmath>
 
-static constexpr float PI_32 = 3.14159265359f;
-
 struct V2
 {
 	float X, Y;
@@ -37,7 +35,7 @@ struct M4
 inline float DegreesToRadians(const float degrees)
 {
 	// 3.14159265359f / 180.0f = 0.01745329252f
-	return degrees * (0.01745329251f);
+	return degrees * (0.01745329252f);
 }
 
 inline float RadiansToDegrees(const float radians)

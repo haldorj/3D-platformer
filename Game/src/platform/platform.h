@@ -3,7 +3,6 @@
 #include <input/input.h>
 #include <assets/sound.h>
 
-// TODO: Consider splitting platform layer into smaller subsystems.
 class Platform
 {
 public:

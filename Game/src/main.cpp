@@ -74,7 +74,7 @@ void Init()
     _Platform = std::make_unique<Win32Platform>();
     _Renderer = std::make_unique<D3D11Renderer>();
 #endif
-    Assert(_Platform && _Renderer);
+    assert(_Platform && _Renderer);
 
     _GameMemory = std::make_unique<GameMemory>();
 
@@ -207,7 +207,7 @@ void InitGame(int gameResolutionWidth, int gameResolutionHeight, GameMemory* gam
 
 void UploadMeshesToGPU(GameMemory* gameState)
 {
-    Assert(_Renderer);
+    assert(_Renderer);
 
     Model model{};
     //model = ModelLoader::LoadGLTFModel("assets/models/dummy_platformer.gltf");
@@ -485,7 +485,7 @@ Entity LoadTerrain(const std::string& path, const V3& offset)
 Sound GenerateSineWave(uint32_t sampleRate, 
     float frequency, float durationSeconds)
 {
-    Assert(sampleRate > 0);
+    assert(sampleRate > 0);
 
     Sound result{};
 
@@ -543,10 +543,10 @@ std::unordered_map<char, FontGlyph> LoadFontGlyphs(const std::string& path, Rend
 {
     std::unordered_map<char, FontGlyph> result;
 
-    Assert(renderer);
+    assert(renderer);
 
     std::string ttfBuffer = ReadEntireFile(path);
-    Assert(ttfBuffer.size()); // Ensure the font file was read successfully
+    assert(ttfBuffer.size()); // Ensure the font file was read successfully
 
     const unsigned char* data = (unsigned char*)ttfBuffer.data();
 

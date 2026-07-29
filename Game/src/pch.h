@@ -1,12 +1,5 @@
 #pragma once
 
-#ifdef _DEBUG
-#include <assert.h>
-#define Assert(expr) assert(expr)
-#else
-#define Assert(expr) ((void)0)
-#endif
-
 #ifndef UNICODE
 #define UNICODE
 #endif
